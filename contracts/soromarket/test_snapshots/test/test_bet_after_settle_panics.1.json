@@ -356,38 +356,11 @@
           "contract_data": {
             "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4",
             "key": {
-              "symbol": "bets"
-            },
-            "durability": "persistent"
-          }
-        },
-        [
-          {
-            "last_modified_ledger_seq": 0,
-            "data": {
-              "contract_data": {
-                "ext": "v0",
-                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4",
-                "key": {
-                  "symbol": "bets"
-                },
-                "durability": "persistent",
-                "val": {
-                  "map": []
+              "vec": [
+                {
+                  "symbol": "FalseTotal"
                 }
-              }
-            },
-            "ext": "v0"
-          },
-          4095
-        ]
-      ],
-      [
-        {
-          "contract_data": {
-            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4",
-            "key": {
-              "symbol": "falsetot"
+              ]
             },
             "durability": "persistent"
           }
@@ -400,7 +373,11 @@
                 "ext": "v0",
                 "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4",
                 "key": {
-                  "symbol": "falsetot"
+                  "vec": [
+                    {
+                      "symbol": "FalseTotal"
+                    }
+                  ]
                 },
                 "durability": "persistent",
                 "val": {
@@ -421,7 +398,11 @@
           "contract_data": {
             "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4",
             "key": {
-              "symbol": "market"
+              "vec": [
+                {
+                  "symbol": "Market"
+                }
+              ]
             },
             "durability": "persistent"
           }
@@ -434,7 +415,11 @@
                 "ext": "v0",
                 "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4",
                 "key": {
-                  "symbol": "market"
+                  "vec": [
+                    {
+                      "symbol": "Market"
+                    }
+                  ]
                 },
                 "durability": "persistent",
                 "val": {
@@ -452,7 +437,11 @@
           "contract_data": {
             "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4",
             "key": {
-              "symbol": "oracle"
+              "vec": [
+                {
+                  "symbol": "Oracle"
+                }
+              ]
             },
             "durability": "persistent"
           }
@@ -465,7 +454,11 @@
                 "ext": "v0",
                 "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4",
                 "key": {
-                  "symbol": "oracle"
+                  "vec": [
+                    {
+                      "symbol": "Oracle"
+                    }
+                  ]
                 },
                 "durability": "persistent",
                 "val": {
@@ -483,7 +476,11 @@
           "contract_data": {
             "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4",
             "key": {
-              "symbol": "state"
+              "vec": [
+                {
+                  "symbol": "State"
+                }
+              ]
             },
             "durability": "persistent"
           }
@@ -496,7 +493,11 @@
                 "ext": "v0",
                 "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4",
                 "key": {
-                  "symbol": "state"
+                  "vec": [
+                    {
+                      "symbol": "State"
+                    }
+                  ]
                 },
                 "durability": "persistent",
                 "val": {
@@ -518,7 +519,11 @@
           "contract_data": {
             "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4",
             "key": {
-              "symbol": "token"
+              "vec": [
+                {
+                  "symbol": "Token"
+                }
+              ]
             },
             "durability": "persistent"
           }
@@ -531,7 +536,11 @@
                 "ext": "v0",
                 "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4",
                 "key": {
-                  "symbol": "token"
+                  "vec": [
+                    {
+                      "symbol": "Token"
+                    }
+                  ]
                 },
                 "durability": "persistent",
                 "val": {
@@ -549,7 +558,11 @@
           "contract_data": {
             "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4",
             "key": {
-              "symbol": "truetotal"
+              "vec": [
+                {
+                  "symbol": "TrueTotal"
+                }
+              ]
             },
             "durability": "persistent"
           }
@@ -562,7 +575,11 @@
                 "ext": "v0",
                 "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4",
                 "key": {
-                  "symbol": "truetotal"
+                  "vec": [
+                    {
+                      "symbol": "TrueTotal"
+                    }
+                  ]
                 },
                 "durability": "persistent",
                 "val": {

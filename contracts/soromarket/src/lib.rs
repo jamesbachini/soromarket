@@ -1,11 +1,11 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, Env, Map, Address, String};
+use soroban_sdk::{contract, contractimpl, contracttype, Env, Address, String};
 use sep_41_token::TokenClient;
 
 #[contract]
 pub struct SoroMarket;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[contracttype]
 pub enum Outcome {
     Undecided,
@@ -13,7 +13,7 @@ pub enum Outcome {
     FalseOutcome,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone)]
 #[contracttype]
 pub struct Bets {
     pub bettor: Address,
@@ -22,36 +22,45 @@ pub struct Bets {
     pub claimed: bool,
 }
 
+#[contracttype]
+pub enum StorageKey {
+    Oracle,
+    Token,
+    TrueTotal,
+    FalseTotal,
+    Market,
+    State,
+    Bets(Address),
+}
+
 #[contractimpl]
 impl SoroMarket {
     pub fn setup(env: Env, oracle: Address, token: Address, market: String) {
         let store = env.storage().persistent();
-        // ensure not already setup
-        if store.get::<_, Address>(&symbol_short!("oracle")).is_some() {
+        if store.get::<_, Address>(&StorageKey::Oracle).is_some() {
             panic!("Market already setup");
         }
         let zero: i128 = 0;
-        store.set(&symbol_short!("oracle"), &oracle);
-        store.set(&symbol_short!("token"), &token);
-        store.set(&symbol_short!("truetotal"), &zero);
-        store.set(&symbol_short!("falsetot"), &zero);
-        store.set(&symbol_short!("market"), &market);
-        store.set(&symbol_short!("state"), &Outcome::Undecided);
-        let bets: Map<Address, Bets> = Map::new(&env);
-        store.set(&symbol_short!("bets"), &bets);
+        store.set(&StorageKey::Oracle, &oracle);
+        store.set(&StorageKey::Token, &token);
+        store.set(&StorageKey::TrueTotal, &zero);
+        store.set(&StorageKey::FalseTotal, &zero);
+        store.set(&StorageKey::Market, &market);
+        store.set(&StorageKey::State, &Outcome::Undecided);
     }
 
     pub fn bet(env: Env, user: Address, amount: i128, bet_on_true: bool) {
         user.require_auth();
         let store = env.storage().persistent();
-        let state: Outcome = store.get(&symbol_short!("state")).unwrap();
+        let state: Outcome = store.get(&StorageKey::State).unwrap();
         assert_eq!(state, Outcome::Undecided, "Market not live");
-        if amount <= 0 { panic!("Must send positive amount to bet"); }
-        let mut bets: Map<Address, Bets> = store.get(&symbol_short!("bets")).unwrap();
-        if bets.get(user.clone()).is_some() {
+        if amount <= 0 {
+            panic!("Must send positive amount to bet");
+        }
+        if store.get::<_, Bets>(&StorageKey::Bets(user.clone())).is_some() {
             panic!("Already bet");
         }
-        let token: Address = store.get(&symbol_short!("token")).unwrap();
+        let token: Address = store.get(&StorageKey::Token).unwrap();
         TokenClient::new(&env, &token).transfer_from(
             &env.current_contract_address(),
             &user,
@@ -59,13 +68,13 @@ impl SoroMarket {
             &amount,
         );
         if bet_on_true {
-            let mut true_total: i128 = store.get(&symbol_short!("truetotal")).unwrap();
+            let mut true_total: i128 = store.get(&StorageKey::TrueTotal).unwrap();
             true_total += amount;
-            store.set(&symbol_short!("truetotal"), &true_total);
+            store.set(&StorageKey::TrueTotal, &true_total);
         } else {
-            let mut false_total: i128 = store.get(&symbol_short!("falsetot")).unwrap();
+            let mut false_total: i128 = store.get(&StorageKey::FalseTotal).unwrap();
             false_total += amount;
-            store.set(&symbol_short!("falsetot"), &false_total);
+            store.set(&StorageKey::FalseTotal, &false_total);
         }
         let entry = Bets {
             bettor: user.clone(),
@@ -73,32 +82,32 @@ impl SoroMarket {
             bet_on_true,
             claimed: false,
         };
-        bets.set(user.clone(), entry);
-        store.set(&symbol_short!("bets"), &bets);
+        store.set(&StorageKey::Bets(user), &entry);
     }
 
     pub fn settle(env: Env, oracle: Address, outcome: bool) {
         oracle.require_auth();
         let store = env.storage().persistent();
-        let stored_oracle: Address = store.get(&symbol_short!("oracle")).unwrap();
-        assert_eq!(oracle, stored_oracle, "Unauthorized");
+        let stored: Address = store.get(&StorageKey::Oracle).unwrap();
+        assert_eq!(oracle, stored, "Unauthorized");
+        let state: Outcome = store.get(&StorageKey::State).unwrap();
+        assert_eq!(state, Outcome::Undecided, "Already settled");
         let new_state = if outcome {
             Outcome::TrueOutcome
         } else {
             Outcome::FalseOutcome
         };
-        store.set(&symbol_short!("state"), &new_state);
+        store.set(&StorageKey::State, &new_state);
     }
 
     pub fn claim(env: Env, user: Address) {
         user.require_auth();
         let store = env.storage().persistent();
-        let state: Outcome = store.get(&symbol_short!("state")).unwrap();
-        let mut bets: Map<Address, Bets> = store.get(&symbol_short!("bets")).unwrap();
-        let mut user_bet = bets.get(user.clone()).expect("No bet found");
+        let state: Outcome = store.get(&StorageKey::State).unwrap();
+        let mut user_bet: Bets = store.get(&StorageKey::Bets(user.clone())).unwrap();
         assert!(!user_bet.claimed, "Already claimed");
-        let true_total: i128 = store.get(&symbol_short!("truetotal")).unwrap();
-        let false_total: i128 = store.get(&symbol_short!("falsetot")).unwrap();
+        let true_total: i128 = store.get(&StorageKey::TrueTotal).unwrap();
+        let false_total: i128 = store.get(&StorageKey::FalseTotal).unwrap();
         let mut winnings: i128 = 0;
         const SCALE: i128 = 1_000_000;
         if user_bet.bet_on_true && state == Outcome::TrueOutcome {
@@ -110,9 +119,8 @@ impl SoroMarket {
         }
         if winnings > 0 {
             user_bet.claimed = true;
-            bets.set(user.clone(), user_bet.clone());
-            store.set(&symbol_short!("bets"), &bets);
-            let token: Address = store.get(&symbol_short!("token")).unwrap();
+            store.set(&StorageKey::Bets(user.clone()), &user_bet);
+            let token: Address = store.get(&StorageKey::Token).unwrap();
             TokenClient::new(&env, &token).transfer(
                 &env.current_contract_address(),
                 &user,
