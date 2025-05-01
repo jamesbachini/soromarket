@@ -1,6 +1,8 @@
 # 🧠 SoroMarket – A Soroban Prediction Market Smart Contract
 
-This Soroban smart contract implements a decentralized prediction market on the Stellar blockchain. Users can place bets on binary outcomes, and a designated oracle finalizes the result. Payouts are distributed proportionally to the winning side after settlement.
+This Soroban smart contract implements a decentralized prediction market on the Stellar blockchain. Users can place bets on binary outcomes and a designated oracle finalizes the result.
+
+Payouts are distributed proportionally to the winning side after settlement.
 
 ---
 
