@@ -8,6 +8,7 @@ publish = false
 crate-type = ["cdylib"]
 doctest = false
 
+[dependencies]
 soroban-sdk = { workspace = true }
 sep-41-token = { workspace = true }
 
