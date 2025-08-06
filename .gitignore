@@ -4,3 +4,9 @@ target
 # Local settings
 .soroban
 .stellar
+
+# User
+CLAUDE.md
+contracts/soromarket/test_snapshots
+
+

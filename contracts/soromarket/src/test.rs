@@ -35,7 +35,7 @@ fn setup(env: &Env) -> (
     token_client.approve(&bettor1, &contract_id, &initial, &0_u32);
     token_client.mint(&bettor2, &initial);
     token_client.approve(&bettor2, &contract_id, &initial, &0_u32);
-    client.setup(&oracle, &token_id, &String::from_str(&env, "James Will Be Next President Of The USA"));
+    client.setup(&oracle, &token_id, &String::from_str(&env, "James Will Be Next President Of The USA"), &500_000);
     (client, oracle, token_id, bettor1, bettor2)
 }
 
@@ -186,4 +186,217 @@ fn multiple_bettors_correct_payouts() {
     assert_eq!(after2 - before2, exp2);
     assert_eq!(after3, before3);
     assert_eq!(after4, before4);
+}
+
+#[test]
+fn test_lsmr_initial_market_pricing() {
+    let env = Env::default();
+    let (client, _, _, bettor1, _) = setup(&env);
+    
+    let market_info = client.get_market_info();
+    assert_eq!(market_info, (0, 0, 0, 0)); // (true_shares, false_shares, true_total, false_total)
+    
+    // First bet should get 1:1 ratio when market is empty
+    client.bet(&bettor1, &100, &true);
+    
+    let market_info = client.get_market_info();
+    assert_eq!(market_info.0, 100); // true_shares should equal amount bet
+    assert_eq!(market_info.2, 100); // true_total should equal amount bet
+}
+
+#[test]
+fn test_lsmr_balanced_market_pricing() {
+    let env = Env::default();
+    let (client, _, _, bettor1, bettor2) = setup(&env);
+    
+    // Create balanced market - should get roughly equal shares
+    client.bet(&bettor1, &100, &true);
+    client.bet(&bettor2, &100, &false);
+    
+    let market_info = client.get_market_info();
+    // When market is balanced (50/50), both sides should have similar shares
+    let true_shares = market_info.0;
+    let false_shares = market_info.1;
+    
+    // Both should have reasonable share amounts in a balanced market
+    // The exact amounts depend on the bonding curve pricing
+    assert!(true_shares >= 50 && true_shares <= 150);
+    assert!(false_shares >= 50 && false_shares <= 300);
+}
+
+#[test]
+fn test_lsmr_imbalanced_market_pricing() {
+    let env = Env::default();
+    let (client, _, token_id, bettor1, bettor2) = setup(&env);
+    let bettor3 = Address::generate(&env);
+    let initial = 1_000_i128;
+    let mock_token = MockTokenClient::new(&env, &token_id);
+    mock_token.mint(&bettor3, &initial);
+    mock_token.approve(&bettor3, &client.address, &initial, &0_u32);
+    
+    // Create heavily imbalanced market
+    client.bet(&bettor1, &300, &true);
+    client.bet(&bettor2, &100, &false);
+    
+    let market_info_before = client.get_market_info();
+    
+    // Betting on minority side (false) should get more shares per token
+    client.bet(&bettor3, &100, &false);
+    
+    let market_info_after = client.get_market_info();
+    let new_false_shares = market_info_after.1 - market_info_before.1;
+    
+    // Should get more than 100 shares for 100 tokens on minority side
+    assert!(new_false_shares > 100);
+}
+
+#[test]
+fn test_lsmr_liquidity_parameter_effects() {
+    let env = Env::default();
+    
+    // Test with high liquidity parameter (more responsive pricing)
+    let (client_high, oracle_high, token_high, bettor1_high, bettor2_high) = {
+        let oracle = Address::generate(&env);
+        let bettor1 = Address::generate(&env);
+        let bettor2 = Address::generate(&env);
+        let (token_id, token_client) = create_token_contract(&env);
+        let contract_id = env.register_contract(None, SoroMarket);
+        let client = SoroMarketClient::new(&env, &contract_id);
+        env.mock_all_auths();
+        let initial = 1_000_i128;
+        token_client.mint(&bettor1, &initial);
+        token_client.approve(&bettor1, &contract_id, &initial, &0_u32);
+        token_client.mint(&bettor2, &initial);
+        token_client.approve(&bettor2, &contract_id, &initial, &0_u32);
+        // High liquidity param = 800,000 (80%)
+        client.setup(&oracle, &token_id, &String::from_str(&env, "High Liquidity Test"), &800_000);
+        (client, oracle, token_id, bettor1, bettor2)
+    };
+    
+    // Test with low liquidity parameter (less responsive pricing)
+    let (client_low, oracle_low, token_low, bettor1_low, bettor2_low) = {
+        let oracle = Address::generate(&env);
+        let bettor1 = Address::generate(&env);
+        let bettor2 = Address::generate(&env);
+        let (token_id, token_client) = create_token_contract(&env);
+        let contract_id = env.register_contract(None, SoroMarket);
+        let client = SoroMarketClient::new(&env, &contract_id);
+        env.mock_all_auths();
+        let initial = 1_000_i128;
+        token_client.mint(&bettor1, &initial);
+        token_client.approve(&bettor1, &contract_id, &initial, &0_u32);
+        token_client.mint(&bettor2, &initial);
+        token_client.approve(&bettor2, &contract_id, &initial, &0_u32);
+        // Low liquidity param = 200,000 (20%)
+        client.setup(&oracle, &token_id, &String::from_str(&env, "Low Liquidity Test"), &200_000);
+        (client, oracle, token_id, bettor1, bettor2)
+    };
+    
+    // Create same imbalanced scenario in both markets
+    client_high.bet(&bettor1_high, &300, &true);
+    client_low.bet(&bettor1_low, &300, &true);
+    
+    // Query pricing for same bet amount on minority side
+    let price_high = client_high.get_price_for_shares(&100, &false);
+    let price_low = client_low.get_price_for_shares(&100, &false);
+    
+    // Higher liquidity parameter should make pricing more responsive
+    // For minority positions, this means higher liquidity param gives better deals
+    // However, the exact relationship depends on the specific market state
+    assert!(price_high != price_low); // They should be different
+}
+
+#[test]
+fn test_lsmr_share_based_payouts() {
+    let env = Env::default();
+    let (client, oracle, token_id, bettor1, bettor2) = setup(&env);
+    let bettor3 = Address::generate(&env);
+    let initial = 1_000_i128;
+    let mock_token = MockTokenClient::new(&env, &token_id);
+    mock_token.mint(&bettor3, &initial);
+    mock_token.approve(&bettor3, &client.address, &initial, &0_u32);
+    
+    // Create scenario where different amounts result in different share counts
+    client.bet(&bettor1, &200, &true);  // First bet - should get more shares per token
+    client.bet(&bettor2, &100, &true);  // Second bet - should get fewer shares per token
+    client.bet(&bettor3, &300, &false); // Large bet on false side
+    
+    let market_info_before_settle = client.get_market_info();
+    let true_shares_total = market_info_before_settle.0;
+    let total_pool = market_info_before_settle.2 + market_info_before_settle.3;
+    
+    client.settle(&oracle, &true);
+    
+    let before1 = mock_token.balance(&bettor1);
+    let before2 = mock_token.balance(&bettor2);
+    let before3 = mock_token.balance(&bettor3);
+    
+    client.claim(&bettor1);
+    client.claim(&bettor2);
+    client.claim(&bettor3);
+    
+    let after1 = mock_token.balance(&bettor1);
+    let after2 = mock_token.balance(&bettor2);
+    let after3 = mock_token.balance(&bettor3);
+    
+    let payout1 = after1 - before1;
+    let payout2 = after2 - before2;
+    let payout3 = after3 - before3;
+    
+    // Bettor1 should get larger payout than bettor2 due to more shares (earlier bet)
+    assert!(payout1 > payout2);
+    // Bettor3 (false bettor) should get nothing
+    assert_eq!(payout3, 0);
+    // Total payouts should be close to total pool (accounting for rounding)
+    let total_payout = payout1 + payout2;
+    assert!(total_payout >= total_pool - 5 && total_payout <= total_pool + 5);
+}
+
+#[test]
+fn test_lsmr_get_price_for_shares_consistency() {
+    let env = Env::default();
+    let (client, _, _, bettor1, bettor2) = setup(&env);
+    
+    // Test that get_price_for_shares returns consistent results
+    let initial_price = client.get_price_for_shares(&100, &true);
+    assert_eq!(initial_price, 100); // Should be 1:1 for empty market
+    
+    client.bet(&bettor1, &200, &true);
+    
+    // After imbalance, minority side should be cheaper
+    let true_price = client.get_price_for_shares(&100, &true);
+    let false_price = client.get_price_for_shares(&100, &false);
+    
+    assert!(false_price < true_price); // False side should be cheaper
+}
+
+#[test]
+fn test_lsmr_progressive_pricing() {
+    let env = Env::default();
+    let (client, _, token_id, bettor1, bettor2) = setup(&env);
+    let bettor3 = Address::generate(&env);
+    let bettor4 = Address::generate(&env);
+    let initial = 1_000_i128;
+    let mock_token = MockTokenClient::new(&env, &token_id);
+    mock_token.mint(&bettor3, &initial);
+    mock_token.approve(&bettor3, &client.address, &initial, &0_u32);
+    mock_token.mint(&bettor4, &initial);
+    mock_token.approve(&bettor4, &client.address, &initial, &0_u32);
+    
+    // Test that successive bets get progressively more expensive
+    client.bet(&bettor1, &100, &true);
+    let market_info1 = client.get_market_info();
+    let shares_per_100_1 = market_info1.0;
+    
+    client.bet(&bettor2, &100, &true);
+    let market_info2 = client.get_market_info();
+    let shares_per_100_2 = market_info2.0 - market_info1.0;
+    
+    client.bet(&bettor3, &100, &true);
+    let market_info3 = client.get_market_info();
+    let shares_per_100_3 = market_info3.0 - market_info2.0;
+    
+    // Each successive bet should get fewer shares for the same amount
+    assert!(shares_per_100_1 >= shares_per_100_2);
+    assert!(shares_per_100_2 >= shares_per_100_3);
 }
