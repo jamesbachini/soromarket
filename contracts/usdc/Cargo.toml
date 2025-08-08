@@ -1,0 +1,17 @@
+[package]
+name = "usdc"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+doctest = false
+
+[dependencies]
+soroban-sdk = { workspace = true }
+stellar-tokens = "0.4.1"
+stellar-macros = "0.4.1"
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }

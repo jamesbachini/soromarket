@@ -54,11 +54,11 @@ fn test_setup_stores_values() {
 }
 
 #[test]
-fn test_bet_and_totals() {
+fn test_trade_and_totals() {
     let env = Env::default();
     let (client, _, _token, bettor1, bettor2) = setup(&env);
-    client.bet(&bettor1, &100, &true);
-    client.bet(&bettor2, &200, &false);
+    client.trade(&bettor1, &100, &true);
+    client.trade(&bettor2, &200, &false);
     env.as_contract(&client.address, || {
         let tt: i128 = env.storage().persistent().get(&StorageKey::TrueTotal).unwrap();
         let ft: i128 = env.storage().persistent().get(&StorageKey::FalseTotal).unwrap();
@@ -68,29 +68,20 @@ fn test_bet_and_totals() {
 }
 
 #[test]
-#[should_panic(expected = "Already bet")]
-fn test_double_bet_panics() {
-    let env = Env::default();
-    let (client, _, _, bettor1, _) = setup(&env);
-    client.bet(&bettor1, &50, &true);
-    client.bet(&bettor1, &30, &false);
-}
-
-#[test]
 #[should_panic(expected = "Market not live")]
-fn test_bet_after_settle_panics() {
+fn test_trade_after_settle_panics() {
     let env = Env::default();
     let (client, oracle, _, bettor1, _) = setup(&env);
     client.settle(&oracle, &true);
-    client.bet(&bettor1, &10, &true);
+    client.trade(&bettor1, &10, &true);
 }
 
 #[test]
-#[should_panic(expected = "Must send positive amount to bet")]
-fn test_negative_bet_panics() {
+#[should_panic(expected = "Amount must be non-zero")]
+fn test_zero_trade_amount_panics() {
     let env = Env::default();
     let (client, _, _, bettor1, _) = setup(&env);
-    client.bet(&bettor1, &0, &true);
+    client.trade(&bettor1, &0, &true);
 }
 
 #[test]
@@ -105,7 +96,7 @@ fn test_unauthorized_settle_panics() {
 fn test_claim_before_settle_noop() {
     let env = Env::default();
     let (client, _oracle, token_id, bettor1, _) = setup(&env);
-    client.bet(&bettor1, &100, &true);
+    client.trade(&bettor1, &100, &true);
     let mock_token = MockTokenClient::new(&env, &token_id);
     let before = mock_token.balance(&bettor1);
     client.claim(&bettor1);
@@ -117,8 +108,8 @@ fn test_claim_before_settle_noop() {
 fn test_claim_winners_and_payouts() {
     let env = Env::default();
     let (client, oracle, token_id, bettor1, bettor2) = setup(&env);
-    client.bet(&bettor1, &100, &true);
-    client.bet(&bettor2, &100, &false);
+    client.trade(&bettor1, &100, &true);
+    client.trade(&bettor2, &100, &false);
     client.settle(&oracle, &true);
     let mock_token = MockTokenClient::new(&env, &token_id);
     let before1 = mock_token.balance(&bettor1);
@@ -136,7 +127,7 @@ fn test_claim_winners_and_payouts() {
 fn test_double_claim_panics() {
     let env = Env::default();
     let (client, oracle, _, bettor1, _) = setup(&env);
-    client.bet(&bettor1, &100, &true);
+    client.trade(&bettor1, &100, &true);
     client.settle(&oracle, &true);
     client.claim(&bettor1);
     client.claim(&bettor1);
@@ -158,10 +149,10 @@ fn multiple_bettors_correct_payouts() {
     let b = 300_i128;
     let c = 50_i128;
     let d = 150_i128;
-    client.bet(&bettor1, &a, &true);
-    client.bet(&bettor2, &b, &true);
-    client.bet(&bettor3, &c, &false);
-    client.bet(&bettor4, &d, &false);
+    client.trade(&bettor1, &a, &true);
+    client.trade(&bettor2, &b, &true);
+    client.trade(&bettor3, &c, &false);
+    client.trade(&bettor4, &d, &false);
     client.settle(&oracle, &true);
     let before1 = mock_token.balance(&bettor1);
     let before2 = mock_token.balance(&bettor2);
@@ -196,12 +187,12 @@ fn test_lsmr_initial_market_pricing() {
     let market_info = client.get_market_info();
     assert_eq!(market_info, (0, 0, 0, 0)); // (true_shares, false_shares, true_total, false_total)
     
-    // First bet should get 1:1 ratio when market is empty
-    client.bet(&bettor1, &100, &true);
+    // First trade should get 1:1 ratio when market is empty
+    client.trade(&bettor1, &100, &true);
     
     let market_info = client.get_market_info();
-    assert_eq!(market_info.0, 100); // true_shares should equal amount bet
-    assert_eq!(market_info.2, 100); // true_total should equal amount bet
+    assert_eq!(market_info.0, 100); // true_shares should equal amount traded
+    assert_eq!(market_info.2, 100); // true_total should equal amount traded
 }
 
 #[test]
@@ -210,8 +201,8 @@ fn test_lsmr_balanced_market_pricing() {
     let (client, _, _, bettor1, bettor2) = setup(&env);
     
     // Create balanced market - should get roughly equal shares
-    client.bet(&bettor1, &100, &true);
-    client.bet(&bettor2, &100, &false);
+    client.trade(&bettor1, &100, &true);
+    client.trade(&bettor2, &100, &false);
     
     let market_info = client.get_market_info();
     // When market is balanced (50/50), both sides should have similar shares
@@ -235,13 +226,13 @@ fn test_lsmr_imbalanced_market_pricing() {
     mock_token.approve(&bettor3, &client.address, &initial, &0_u32);
     
     // Create heavily imbalanced market
-    client.bet(&bettor1, &300, &true);
-    client.bet(&bettor2, &100, &false);
+    client.trade(&bettor1, &300, &true);
+    client.trade(&bettor2, &100, &false);
     
     let market_info_before = client.get_market_info();
     
-    // Betting on minority side (false) should get more shares per token
-    client.bet(&bettor3, &100, &false);
+    // Trading on minority side (false) should get more shares per token
+    client.trade(&bettor3, &100, &false);
     
     let market_info_after = client.get_market_info();
     let new_false_shares = market_info_after.1 - market_info_before.1;
@@ -293,10 +284,10 @@ fn test_lsmr_liquidity_parameter_effects() {
     };
     
     // Create same imbalanced scenario in both markets
-    client_high.bet(&bettor1_high, &300, &true);
-    client_low.bet(&bettor1_low, &300, &true);
+    client_high.trade(&bettor1_high, &300, &true);
+    client_low.trade(&bettor1_low, &300, &true);
     
-    // Query pricing for same bet amount on minority side
+    // Query pricing for same trade amount on minority side
     let price_high = client_high.get_price_for_shares(&100, &false);
     let price_low = client_low.get_price_for_shares(&100, &false);
     
@@ -317,13 +308,14 @@ fn test_lsmr_share_based_payouts() {
     mock_token.approve(&bettor3, &client.address, &initial, &0_u32);
     
     // Create scenario where different amounts result in different share counts
-    client.bet(&bettor1, &200, &true);  // First bet - should get more shares per token
-    client.bet(&bettor2, &100, &true);  // Second bet - should get fewer shares per token
-    client.bet(&bettor3, &300, &false); // Large bet on false side
+    client.trade(&bettor1, &200, &true);  // First trade - should get more shares per token
+    client.trade(&bettor2, &100, &true);  // Second trade - should get fewer shares per token
+    client.trade(&bettor3, &300, &false); // Large trade on false side
     
     let market_info_before_settle = client.get_market_info();
     let true_shares_total = market_info_before_settle.0;
     let total_pool = market_info_before_settle.2 + market_info_before_settle.3;
+    let _ = true_shares_total; // silence potential unused var warning
     
     client.settle(&oracle, &true);
     
@@ -343,7 +335,7 @@ fn test_lsmr_share_based_payouts() {
     let payout2 = after2 - before2;
     let payout3 = after3 - before3;
     
-    // Bettor1 should get larger payout than bettor2 due to more shares (earlier bet)
+    // Bettor1 should get larger payout than bettor2 due to more shares (earlier trade)
     assert!(payout1 > payout2);
     // Bettor3 (false bettor) should get nothing
     assert_eq!(payout3, 0);
@@ -361,7 +353,7 @@ fn test_lsmr_get_price_for_shares_consistency() {
     let initial_price = client.get_price_for_shares(&100, &true);
     assert_eq!(initial_price, 100); // Should be 1:1 for empty market
     
-    client.bet(&bettor1, &200, &true);
+    client.trade(&bettor1, &200, &true);
     
     // After imbalance, minority side should be cheaper
     let true_price = client.get_price_for_shares(&100, &true);
@@ -383,20 +375,19 @@ fn test_lsmr_progressive_pricing() {
     mock_token.mint(&bettor4, &initial);
     mock_token.approve(&bettor4, &client.address, &initial, &0_u32);
     
-    // Test that successive bets get progressively more expensive
-    client.bet(&bettor1, &100, &true);
+    // Test that successive trades get progressively more expensive
+    client.trade(&bettor1, &100, &true);
     let market_info1 = client.get_market_info();
     let shares_per_100_1 = market_info1.0;
     
-    client.bet(&bettor2, &100, &true);
+    client.trade(&bettor2, &100, &true);
     let market_info2 = client.get_market_info();
-    let shares_per_100_2 = market_info2.0 - market_info1.0;
+    let shares_per_100_2 = market_info2.0 - shares_per_100_1;
     
-    client.bet(&bettor3, &100, &true);
+    client.trade(&bettor3, &100, &true);
     let market_info3 = client.get_market_info();
     let shares_per_100_3 = market_info3.0 - market_info2.0;
     
-    // Each successive bet should get fewer shares for the same amount
     assert!(shares_per_100_1 >= shares_per_100_2);
     assert!(shares_per_100_2 >= shares_per_100_3);
 }

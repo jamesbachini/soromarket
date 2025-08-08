@@ -8,10 +8,11 @@ set -e  # Exit on any error
 # Configuration
 SOURCE_ACCOUNT="james"
 NETWORK="testnet"
-WASM_PATH="../../target/wasm32-unknown-unknown/release/soromarket.wasm"
-TOKEN_CONTRACT="CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA"  # USDC testnet
+SOROMARKET_WASM_PATH="../../target/wasm32-unknown-unknown/release/soromarket.wasm"
+USDC_WASM_PATH="../../target/wasm32-unknown-unknown/release/usdc.wasm"
 ORACLE_ADDRESS="GD6ERVU2XC35LUZQ57JKTRF6DMCNF2JI5TFL7COH5FSQ4TZ2IBA3H55C" 
 LIQUIDITY_PARAM="500000"  # 50% liquidity parameter
+LIQUIDITY_AMOUNT="100000000"  # 100 USDC (6 decimals) per side
 
 # Colors for output
 RED='\033[0;31m'
@@ -24,36 +25,64 @@ echo -e "${BLUE}🚀 SoroMarket Deployment Script${NC}"
 echo "================================="
 echo ""
 
-# Step 1: Build the contract
-echo -e "${YELLOW}📦 Building contract...${NC}"
-cd contracts/soromarket
+# Step 1: Build the contracts
+echo -e "${YELLOW}📦 Building contracts...${NC}"
+
+# Build USDC contract
+echo "Building USDC contract..."
+cd contracts/usdc
 cargo build --target wasm32-unknown-unknown --release
 
-if [ ! -f "$WASM_PATH" ]; then
-    echo -e "${RED}❌ Build failed - WASM file not found at $WASM_PATH${NC}"
+if [ ! -f "$USDC_WASM_PATH" ]; then
+    echo -e "${RED}❌ USDC contract build failed - WASM file not found at $USDC_WASM_PATH${NC}"
     exit 1
 fi
 
-echo -e "${GREEN}✅ Contract built successfully${NC}"
+# Build SoroMarket contract
+echo "Building SoroMarket contract..."
+cd ../soromarket
+cargo build --target wasm32-unknown-unknown --release
+
+if [ ! -f "$SOROMARKET_WASM_PATH" ]; then
+    echo -e "${RED}❌ SoroMarket contract build failed - WASM file not found at $SOROMARKET_WASM_PATH${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✅ Contracts built successfully${NC}"
 echo ""
 
-# Step 2: Deploy contract (single deployment, will be reused for all markets)
-echo -e "${YELLOW}🌐 Deploying contract...${NC}"
+# Step 2: Deploy USDC token contract
+echo -e "${YELLOW}💰 Deploying USDC token contract...${NC}"
+USDC_CONTRACT_ID=$(stellar contract deploy \
+    --wasm "$USDC_WASM_PATH" \
+    --source "$SOURCE_ACCOUNT" \
+    --network "$NETWORK" \
+    2>/dev/null | grep -o 'C[A-Z0-9]\{55\}')
+
+if [ -z "$USDC_CONTRACT_ID" ]; then
+    echo -e "${RED}❌ USDC contract deployment failed${NC}"
+    exit 1
+fi
+
+echo -e "${GREEN}✅ USDC contract deployed: $USDC_CONTRACT_ID${NC}"
+
+# Step 3: Deploy SoroMarket contract (single deployment, will be reused for all markets)
+echo -e "${YELLOW}🌐 Deploying SoroMarket contract...${NC}"
 CONTRACT_ID=$(stellar contract deploy \
-    --wasm "$WASM_PATH" \
+    --wasm "$SOROMARKET_WASM_PATH" \
     --source "$SOURCE_ACCOUNT" \
     --network "$NETWORK" \
     2>/dev/null | grep -o 'C[A-Z0-9]\{55\}')
 
 if [ -z "$CONTRACT_ID" ]; then
-    echo -e "${RED}❌ Contract deployment failed${NC}"
+    echo -e "${RED}❌ SoroMarket contract deployment failed${NC}"
     exit 1
 fi
 
-echo -e "${GREEN}✅ Contract deployed: $CONTRACT_ID${NC}"
+echo -e "${GREEN}✅ SoroMarket contract deployed: $CONTRACT_ID${NC}"
 echo ""
 
-# Step 3: Deploy individual market instances for each candidate
+# Step 4: Deploy individual market instances for each candidate
 declare -A CANDIDATES=(
     ["vance"]="JD Vance - 2028 US Presidential Election"
     ["newsom"]="Gavin Newsom - 2028 US Presidential Election"  
@@ -75,7 +104,7 @@ for candidate in "${!CANDIDATES[@]}"; do
     
     # Deploy a new instance for this candidate
     CANDIDATE_CONTRACT_ID=$(stellar contract deploy \
-        --wasm "$WASM_PATH" \
+        --wasm "$SOROMARKET_WASM_PATH" \
         --source "$SOURCE_ACCOUNT" \
         --network "$NETWORK" \
         2>/dev/null | grep -o 'C[A-Z0-9]\{55\}')
@@ -97,7 +126,7 @@ for candidate in "${!CANDIDATES[@]}"; do
         --network "$NETWORK" \
         -- setup \
         --oracle "$ORACLE_ADDRESS" \
-        --token "$TOKEN_CONTRACT" \
+        --token "$USDC_CONTRACT_ID" \
         --market "$description" \
         --liquidity_param "$LIQUIDITY_PARAM" \
         2>&1)
@@ -109,16 +138,73 @@ for candidate in "${!CANDIDATES[@]}"; do
         continue
     fi
     
+    # Note: Contract enforces single bet per user, so we'll provide initial YES liquidity
+    # Users can provide NO liquidity when they bet
+    
+    # Get source account address
+    SOURCE_ADDRESS=$(stellar keys address "$SOURCE_ACCOUNT" 2>/dev/null)
+
+    # Mint tokens for initial liquidity (100 USDC)
+    echo "  💰 Minting USDC to: ${SOURCE_ADDRESS}"
+    MINT_AMOUNT=$((LIQUIDITY_AMOUNT * 2))
+
+    stellar contract invoke \
+        --id "$USDC_CONTRACT_ID" \
+        --source "$SOURCE_ACCOUNT" \
+        --network "$NETWORK" \
+        -- mint \
+        --account "$SOURCE_ADDRESS" \
+        --amount "$MINT_AMOUNT" \
+        2>/dev/null
+
+    # Approve spend - change live_until_ledger for mainnet
+    echo "  🎟️ Approving spend..."
+    stellar contract invoke \
+        --id "$USDC_CONTRACT_ID" \
+        --source "$SOURCE_ACCOUNT" \
+        --network "$NETWORK" \
+        -- approve \
+        --owner "$SOURCE_ADDRESS" \
+        --spender "$CANDIDATE_CONTRACT_ID" \
+        --amount "$MINT_AMOUNT" \
+        --live_until_ledger "3110400" \
+        2>/dev/null
+    
+    # Place Yes bet (100 USDC) to provide initial liquidity
+    echo "  📈 Placing 100 USDC initial liquidity bet on YES & 100 USDC on NO..."
+    stellar contract invoke \
+        --id "$CANDIDATE_CONTRACT_ID" \
+        --source "$SOURCE_ACCOUNT" \
+        --network "$NETWORK" \
+        -- trade \
+        --user "$SOURCE_ADDRESS" \
+        --amount "$LIQUIDITY_AMOUNT" \
+        --bet_on_true true \
+        2>/dev/null
+    
+    echo -e "  ${GREEN}✅ Added 100 USDC initial liquidity to YES side${NC}"
+
+    stellar contract invoke \
+        --id "$CANDIDATE_CONTRACT_ID" \
+        --source "$SOURCE_ACCOUNT" \
+        --network "$NETWORK" \
+        -- trade \
+        --user "$SOURCE_ADDRESS" \
+        --amount "$LIQUIDITY_AMOUNT" \
+        --bet_on_true false \
+        2>/dev/null
+    
+    echo -e "  ${GREEN}✅ Added 100 USDC initial liquidity to NO side${NC}"
     echo ""
 done
 
-# Step 4: Generate configuration file for frontend
+# Step 5: Generate configuration file for frontend
 echo -e "${YELLOW}📝 Generating frontend configuration...${NC}"
 
 cat > ../../contract-addresses.json << EOF
 {
   "network": "$NETWORK",
-  "tokenContract": "$TOKEN_CONTRACT",
+  "tokenContract": "$USDC_CONTRACT_ID",
   "oracleAddress": "$ORACLE_ADDRESS", 
   "liquidityParam": $LIQUIDITY_PARAM,
   "contracts": {
@@ -142,12 +228,12 @@ EOF
 echo -e "${GREEN}✅ Configuration saved to contract-addresses.json${NC}"
 echo ""
 
-# Step 5: Display summary
+# Step 6: Display summary
 echo -e "${BLUE}📋 Deployment Summary${NC}"
 echo "====================="
 echo "Network: $NETWORK"
 echo "Source Account: $SOURCE_ACCOUNT"
-echo "Token Contract: $TOKEN_CONTRACT"
+echo "USDC Token Contract: $USDC_CONTRACT_ID"
 echo "Oracle Address: $ORACLE_ADDRESS"
 echo "Liquidity Parameter: $LIQUIDITY_PARAM"
 echo ""
@@ -155,15 +241,6 @@ echo "Market Contracts:"
 for candidate in "${!CONTRACT_IDS[@]}"; do
     echo "  $candidate: ${CONTRACT_IDS[$candidate]}"
 done
-echo ""
-
-# Step 6: Generate update command for frontend
-echo -e "${YELLOW}🔧 Frontend Integration${NC}"
-echo "To update your frontend with these contract addresses:"
-echo ""
-echo "1. Copy the addresses from contract-addresses.json"
-echo "2. Update the CONFIG.contracts object in index.html"
-echo "3. Update CONFIG.tokenContract with: $TOKEN_CONTRACT"
 echo ""
 
 # Step 7: Test a view function on one contract
@@ -190,8 +267,3 @@ fi
 echo ""
 echo -e "${GREEN}🎉 Deployment complete! All markets are ready for trading.${NC}"
 echo ""
-echo "Next steps:"
-echo "1. Update frontend configuration with the contract addresses above"
-echo "2. Ensure users have USDC tokens for betting"
-echo "3. Test the betting functionality"
-echo "4. Set up oracle for market settlement"

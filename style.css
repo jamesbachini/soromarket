@@ -1,0 +1,362 @@
+:root {
+  --bg1: #1a1b3e;
+  --bg2: #080512;
+  --glass: rgba(255,255,255,.1);
+  --txt: #ffffff;
+  --accent: #6366f1;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --card-bg: rgba(255,255,255,.05);
+  --border: rgba(255,255,255,.1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  background: linear-gradient(135deg, var(--bg1), var(--bg2));
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--txt);
+  overflow-x: hidden;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+h1 {
+  font-size: 3rem;
+  font-weight: 800;
+  background: linear-gradient(90deg, var(--accent), #8b5cf6, #ec4899);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 1rem;
+}
+
+.subheading {
+  font-size: 0.8rem;
+  color: #6366f1;
+  opacity: 0.8;
+  margin-bottom: 1.5rem;
+}
+
+.subtitle {
+  font-size: 1.2rem;
+  opacity: 0.8;
+  margin-bottom: 2rem;
+}
+
+.wallet-info {
+  backdrop-filter: blur(10px);
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  padding: 1rem 1.5rem;
+  display: inline-block;
+  margin-bottom: 2rem;
+}
+
+.markets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 2rem;
+  margin-bottom: 3rem;
+}
+
+.market-card {
+  backdrop-filter: blur(10px);
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 2rem;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.market-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+  border-color: var(--accent);
+}
+
+.market-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--accent), #8b5cf6, #ec4899);
+}
+
+.candidate-name {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.candidate-party {
+  text-align: center;
+  opacity: 0.7;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.market-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.stat {
+  text-align: center;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  opacity: 0.7;
+  margin-bottom: 0.3rem;
+}
+
+.stat-value {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.probability {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.betting-section {
+  margin-top: 1.5rem;
+}
+
+.bet-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.bet-input-group {
+  position: relative;
+}
+
+.bet-input-group input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.05);
+  color: var(--txt);
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.3s ease;
+}
+
+.bet-input-group input:focus {
+  border-color: var(--accent);
+}
+
+.bet-input-group label {
+  position: absolute;
+  top: -0.5rem;
+  left: 1rem;
+  background: var(--bg1);
+  padding: 0 0.5rem;
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.bet-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.btn {
+  padding: 1rem 1.5rem;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn-yes {
+  background: linear-gradient(45deg, var(--success), #059669);
+  color: white;
+}
+
+.btn-yes:hover {
+  box-shadow: 0 10px 30px rgba(16, 185, 129, 0.3);
+}
+
+.btn-no {
+  background: linear-gradient(45deg, var(--error), #dc2626);
+  color: white;
+}
+
+.btn-no:hover {
+  box-shadow: 0 10px 30px rgba(239, 68, 68, 0.3);
+}
+
+.btn-claim {
+  background: linear-gradient(45deg, var(--accent), #5b21b6);
+  color: white;
+  margin-top: 1rem;
+  width: 100%;
+}
+
+.btn-claim:hover:not(:disabled) {
+  box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3);
+}
+
+.btn-claim:disabled {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.message {
+  text-align: center;
+  padding: 1rem;
+  border-radius: 10px;
+  margin: 1rem 0;
+  font-weight: 500;
+}
+
+.message.success {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid var(--success);
+  color: var(--success);
+}
+
+.message.error {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid var(--error);
+  color: var(--error);
+}
+
+.message.info {
+  background: rgba(99, 102, 241, 0.2);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
+
+.footer {
+  text-align: center;
+  margin-top: 3rem;
+  padding: 2rem;
+  opacity: 0.6;
+  font-size: 0.9rem;
+}
+
+.footer a {
+  color:#fff;
+}
+
+@media (max-width: 768px) {
+  h1 {
+    font-size: 2rem;
+  }
+  
+  .markets-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .bet-inputs, .bet-buttons {
+    grid-template-columns: 1fr;
+  }
+}
+
+.spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255,255,255,.3);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.hidden {
+  display: none;
+}
+
+.user-position {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.shares-balance {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.balance-item {
+  text-align: center;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.balance-label {
+  display: block;
+  font-size: 0.8rem;
+  opacity: 0.7;
+  margin-bottom: 0.3rem;
+}
+
+.balance-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--accent);
+}
