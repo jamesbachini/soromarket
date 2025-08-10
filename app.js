@@ -4,7 +4,6 @@ let CONFIG = {
   networkPassphrase: StellarSdk.Networks.TESTNET,
   contracts: {},
   tokenContract: '',
-  liquidityParam: 500_000,
   refreshInterval: 30000 // 30 seconds
 };
 
@@ -94,6 +93,7 @@ function initializeMarketData() {
     setInterval(() => {
       loadMarketData();
       updateAllUserBalances();
+      updateWalletInfo();
     }, CONFIG.refreshInterval);
 
     showMessage('Welcome to SoroMarket! Ready to trade 2028 election outcomes.', 'success');
@@ -171,6 +171,7 @@ async function loadCandidateData(candidate) {
       probabilities: probabilities, // (trueProbability, falseProbability)
       loaded: true
     };
+    //console.log(marketData, marketData[candidate])
   } catch (error) {
     console.error(`Error loading data for ${candidate}:`, error);
     // Keep loading state as false for error cases
@@ -184,26 +185,6 @@ async function loadCandidateData(candidate) {
       loaded: false
     };
   }
-}
-
-function calculateLSMRPrice(candidate, betOnTrue, amount = 100) {
-  const data = marketData[candidate];
-  const totalShares = data.trueShares + data.falseShares;
-  if (totalShares === 0)  return { yesPrice: 0.50, noPrice: 0.50, shares: amount };
-  const currentShares = betOnTrue ? data.trueShares : data.falseShares;
-  const currentProb = currentShares / totalShares;
-  // LSMR formula: price = currentProb + (1 - currentProb) * liquidityParam / SCALE
-  const SCALE = 1_000_000;
-  const liquidityParam = CONFIG.liquidityParam;
-  const pricePerShare = currentProb + (1 - currentProb) * liquidityParam / SCALE;
-  const yesPrice = betOnTrue ? pricePerShare : (1 - pricePerShare);
-  const noPrice = 1 - yesPrice;
-  const shares = Math.floor(amount / (betOnTrue ? yesPrice : noPrice));
-  return {
-    yesPrice: Math.max(0.01, Math.min(0.99, yesPrice)),
-    noPrice: Math.max(0.01, Math.min(0.99, noPrice)),
-    shares: Math.max(1, shares)
-  };
 }
 
 function updateAllPrices() {
@@ -224,17 +205,19 @@ function updateCandidatePrices(candidate) {
   }
   let yesPrice, noPrice;
   if (data.probabilities) {
-    yesPrice = data.probabilities[0] / 1_000_000n;
-    noPrice = data.probabilities[1] / 1_000_000n;
+    yesPrice = Number(data.probabilities[0]) / 1_000_000;
+    noPrice = Number(data.probabilities[1]) / 1_000_000;
   } else {
     yesPrice = 0.5;
     noPrice = 0.5;
   }
-  document.getElementById(`${candidate}-probability`).textContent = `${(yesPrice * 100n)}%`;
+  document.getElementById(`${candidate}-probability`).textContent = `${(yesPrice * 100).toFixed(2)}%`;
   const totalVolume = (data.trueTotal || 0n) + (data.falseTotal || 0n);
   document.getElementById(`${candidate}-volume`).textContent = `$${totalVolume / 1_000_000n}`;
-  document.getElementById(`${candidate}-yes-price`).textContent = `$${yesPrice}`;
-  document.getElementById(`${candidate}-no-price`).textContent = `$${noPrice}`;
+  if (document.getElementById(`${candidate}-yes-price`) && document.getElementById(`${candidate}-no-price`)) {
+    document.getElementById(`${candidate}-yes-price`).textContent = `$${yesPrice.toFixed(2)}`;
+    document.getElementById(`${candidate}-no-price`).textContent = `$${noPrice.toFixed(2)}`;
+  }
   updateSharesDisplay(candidate);
 }
 
@@ -288,7 +271,6 @@ async function placeBet(candidate, betOnTrue) {
         keypair.publicKey(),
         contractAddress
       ]);
-      console.log('allowance',allowance)
       if (allowance < scaledAmount) {
         await callContractMethod(tokenContract, 'approve', [
           keypair.publicKey(),
@@ -337,7 +319,7 @@ function getDisplayName(candidate) {
 }
 
 function setLoadingState(candidate, loading) {
-  console.log(candidate)
+  //console.log(candidate)
   const card = document.querySelector(`[data-candidate="${candidate}"]`);
   const buttons = card.querySelectorAll('.btn');
   if (loading) {

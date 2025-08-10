@@ -146,7 +146,7 @@ for candidate in "${!CANDIDATES[@]}"; do
 
     # Mint tokens for initial liquidity (100 USDC)
     echo "  💰 Minting USDC to: ${SOURCE_ADDRESS}"
-    MINT_AMOUNT=$((LIQUIDITY_AMOUNT * 2))
+    MINT_AMOUNT=$((LIQUIDITY_AMOUNT * 3))
 
     stellar contract invoke \
         --id "$USDC_CONTRACT_ID" \
@@ -170,8 +170,35 @@ for candidate in "${!CANDIDATES[@]}"; do
         --live_until_ledger "3110400" \
         2>/dev/null
     
-    # Place Yes bet (100 USDC) to provide initial liquidity
-    echo "  📈 Placing 100 USDC initial liquidity bet on YES & 100 USDC on NO..."
+    # Place bets to slowly build initial liquidity
+    echo "  📈 Placing 1 USDC initial liquidity bet on YES & 1 USDC on NO..."
+    INITIAL_AMOUNT=$((LIQUIDITY_AMOUNT / 100))
+
+    stellar contract invoke \
+        --id "$CANDIDATE_CONTRACT_ID" \
+        --source "$SOURCE_ACCOUNT" \
+        --network "$NETWORK" \
+        -- trade \
+        --user "$SOURCE_ADDRESS" \
+        --amount "$INITIAL_AMOUNT" \
+        --bet_on_true true \
+        2>/dev/null
+    
+    echo -e "  ${GREEN}✅ Added 1 USDC initial liquidity to YES side${NC}"
+
+    stellar contract invoke \
+        --id "$CANDIDATE_CONTRACT_ID" \
+        --source "$SOURCE_ACCOUNT" \
+        --network "$NETWORK" \
+        -- trade \
+        --user "$SOURCE_ADDRESS" \
+        --amount "$INITIAL_AMOUNT" \
+        --bet_on_true false \
+        2>/dev/null
+    
+    echo -e "  ${GREEN}✅ Added 1 USDC initial liquidity to NO side${NC}"
+
+    echo "  📈 Placing 100 USDC additional liquidity bet on YES & 100 USDC on NO..."
     stellar contract invoke \
         --id "$CANDIDATE_CONTRACT_ID" \
         --source "$SOURCE_ACCOUNT" \
