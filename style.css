@@ -1,5 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Schabo&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap');
 
 :root {
   --bg1: #1a1b3e;
@@ -41,8 +41,7 @@ header {
 
 h1 {
   font-size: 4rem;
-  letter-spacing: 0.3rem;
-  font-family: 'Schabo', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Bebas Neue', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   background: linear-gradient(90deg, var(--accent), #8b5cf6, #ec4899);
   background-clip: text;
   -webkit-background-clip: text;
@@ -154,7 +153,8 @@ h1 {
 }
 
 .candidate-name {
-  font-size: 1.2rem;
+  font-size: 1.5rem;
+  font-family: 'Bebas Neue', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-weight: 700;
   margin-bottom: 0.2rem;
   color: var(--txt);
