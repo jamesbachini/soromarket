@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(cargo test)",
-      "Bash(stellar contract build:*)"
+      "Bash(stellar contract build:*)",
+      "Bash(rustc --version)",
+      "Bash(cargo update:*)"
     ],
     "deny": []
   }

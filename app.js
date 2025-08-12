@@ -14,7 +14,6 @@ async function loadContractAddresses() {
     const contractData = await response.json();
     CONFIG.contracts = contractData.contracts;
     CONFIG.tokenContract = contractData.tokenContract;
-    CONFIG.liquidityParam = contractData.liquidityParam;
     if (contractData.network === 'testnet') {
       CONFIG.networkPassphrase = StellarSdk.Networks.TESTNET;
       CONFIG.rpcUrl = 'https://soroban-testnet.stellar.org';
@@ -48,7 +47,7 @@ function initializeMarketData() {
   
   candidates.forEach(candidate => {
     marketData[candidate] = { 
-      trueShares: 0, falseShares: 0, trueTotal: 0, falseTotal: 0, 
+      trueReserve: 0, falseReserve: 0, totalVolume: 0,
       state: null, probabilities: null, loaded: false 
     };
     userPositions[candidate] = { 
@@ -136,7 +135,7 @@ async function updateWalletInfo() {
   walletInfo.innerHTML = `
     <div style="color: var(--success);">• Wallet Connected :: Testnet •</div>
     <div style="font-size: 0.6em; margin: 4px 0px;">${publicKey}</div>
-    <div style="color: var(--accent);">USDC Balance: ${formattedTokenBalance}</div>
+    <div class="wallet-balance">USDC Balance: ${formattedTokenBalance}</div>
   `;
 }
 
@@ -160,13 +159,12 @@ async function loadCandidateData(candidate) {
       callContractMethod(contractAddress, 'get_current_probabilities'), 
       callContractMethod(contractAddress, 'get_market_state')
     ]);
-    // marketInfo returns (trueShares, falseShares, trueTotal, falseTotal)
+    // marketInfo returns (trueReserve, falseReserve, totalVolume)
     if (!marketInfo) return;
     marketData[candidate] = {
-      trueShares: marketInfo[0] || 0,
-      falseShares: marketInfo[1] || 0, 
-      trueTotal: marketInfo[2] || 0,
-      falseTotal: marketInfo[3] || 0,
+      trueReserve: marketInfo[0] || 0,
+      falseReserve: marketInfo[1] || 0,
+      totalVolume: marketInfo[2] || 0,
       state: marketState,
       probabilities: probabilities, // (trueProbability, falseProbability)
       loaded: true
@@ -176,10 +174,9 @@ async function loadCandidateData(candidate) {
     console.error(`Error loading data for ${candidate}:`, error);
     // Keep loading state as false for error cases
     marketData[candidate] = {
-      trueShares: 0,
-      falseShares: 0,
-      trueTotal: 0,
-      falseTotal: 0,
+      trueReserve: 0,
+      falseReserve: 0,
+      totalVolume: 0,
       state: null,
       probabilities: null,
       loaded: false
@@ -201,6 +198,8 @@ function updateCandidatePrices(candidate) {
     document.getElementById(`${candidate}-volume`).textContent = '$0';
     document.getElementById(`${candidate}-yes-price`).textContent = '$...';
     document.getElementById(`${candidate}-no-price`).textContent = '$...';
+    document.getElementById(`${candidate}-yes-reserve`).textContent = '...';
+    document.getElementById(`${candidate}-no-reserve`).textContent = '...';
     return;
   }
   let yesPrice, noPrice;
@@ -211,44 +210,29 @@ function updateCandidatePrices(candidate) {
     yesPrice = 0.5;
     noPrice = 0.5;
   }
+  
+  // Update prices
   document.getElementById(`${candidate}-probability`).textContent = `${(yesPrice * 100).toFixed(2)}%`;
-  const totalVolume = (data.trueTotal || 0n) + (data.falseTotal || 0n);
-  document.getElementById(`${candidate}-volume`).textContent = `$${totalVolume / 1_000_000n}`;
+  const totalVolume = data.totalVolume || 0;
+  document.getElementById(`${candidate}-volume`).textContent = `$${(Number(totalVolume) / 1_000_000).toLocaleString()}`;
   if (document.getElementById(`${candidate}-yes-price`) && document.getElementById(`${candidate}-no-price`)) {
     document.getElementById(`${candidate}-yes-price`).textContent = `$${yesPrice.toFixed(2)}`;
     document.getElementById(`${candidate}-no-price`).textContent = `$${noPrice.toFixed(2)}`;
   }
-  updateSharesDisplay(candidate);
-}
-
-async function updateSharesDisplay(candidate) {
-  const amountInput = document.getElementById(`${candidate}-amount`);
-  const sharesDisplay = document.getElementById(`${candidate}-shares`);
-  const amount = parseFloat(amountInput.value) || 0;
-  if (amount > 0 && marketData[candidate].loaded) {
-    try {
-      const contractAddress = CONFIG.contracts[candidate];
-      const shares = await callContractMethod(contractAddress, 'get_shares_for_cost', [
-        amount * 1_000_000n,
-        true
-      ]);
-      sharesDisplay.value = shares;
-    } catch (error) {
-      sharesDisplay.value = '...';
-    }
-  } else {
-    sharesDisplay.value = amount > 0n ? '...' : '0';
+  
+  // Update reserves
+  const yesReserve = data.trueReserve || 0;
+  const noReserve = data.falseReserve || 0;
+  if (document.getElementById(`${candidate}-yes-reserve`) && document.getElementById(`${candidate}-no-reserve`)) {
+    document.getElementById(`${candidate}-yes-reserve`).textContent = `$${(Number(yesReserve) / 1_000_000).toLocaleString()}`;
+    document.getElementById(`${candidate}-no-reserve`).textContent = `$${(Number(noReserve) / 1_000_000).toLocaleString()}`;
   }
 }
 
+
 function setupEventListeners() {
-  const candidates = Object.keys(CONFIG.contracts);
-  candidates.forEach(candidate => {
-    const amountInput = document.getElementById(`${candidate}-amount`);
-    if (amountInput) {
-      amountInput.addEventListener('input', () => updateSharesDisplay(candidate));
-    }
-  });
+  // Event listeners for the simplified UI - no complex dynamic button updates needed
+  console.log('Event listeners set up for simplified UI');
 }
 
 async function placeBet(candidate, betOnTrue) {
@@ -285,7 +269,7 @@ async function placeBet(candidate, betOnTrue) {
     } catch (error) {
       console.warn('Token approval check failed, proceeding...', error);
     }
-    await callContractMethod(contractAddress, 'trade', [
+    await callContractMethod(contractAddress, 'buy', [
       keypair.publicKey(),
       scaledAmount,
       betOnTrue
@@ -453,20 +437,25 @@ async function updateAllUserBalances() {
 async function updateUserBalance(candidate) {
   try {
     const contractAddress = CONFIG.contracts[candidate];
-    const userBet = await callContractMethod(contractAddress, 'get_user_shares', [
+    const userShares = await callContractMethod(contractAddress, 'get_user_shares', [
       keypair.publicKey()
     ]);
     let position = userPositions[candidate];
-    if (userBet) {
-      if (userBet.bet_on_true) {
-        position.yesShares = userBet[0];
-      } else {
-        position.noShares = userBet[1];
-      }
-      position.claimed = userBet.claimed;
+    if (userShares) {
+      // userShares returns (trueShares, falseShares)
+      position.yesShares = Number(userShares[0]) || 0;
+      position.noShares = Number(userShares[1]) || 0;
     }
-    document.getElementById(`${candidate}-yes-balance`).textContent = position.yesShares;
-    document.getElementById(`${candidate}-no-balance`).textContent = position.noShares;
+    
+    // Calculate and display USDC values of positions
+    const yesValue = await calculatePositionValue(candidate, position.yesShares, true);
+    const noValue = await calculatePositionValue(candidate, position.noShares, false);
+    
+    document.getElementById(`${candidate}-yes-balance`).textContent = position.yesShares > 0 ? `$${yesValue.toFixed(2)}` : '$0.00';
+    document.getElementById(`${candidate}-no-balance`).textContent = position.noShares > 0 ? `$${noValue.toFixed(2)}` : '$0.00';
+    
+    // Update sell buttons visibility
+    updateSellButtons(candidate, position);
     const marketState = await callContractMethod(contractAddress, 'get_market_state');
     const isSettled = marketState !== 'Undecided';
     const claimBtn = document.getElementById(`${candidate}-claim-btn`);
@@ -491,11 +480,175 @@ async function updateUserBalance(candidate) {
   } catch (error) {
     console.error(`Error updating user balance for ${candidate}:`, error);
     const position = userPositions[candidate];
-    document.getElementById(`${candidate}-yes-balance`).textContent = position.yesShares.toLocaleString();
-    document.getElementById(`${candidate}-no-balance`).textContent = position.noShares.toLocaleString();
+    document.getElementById(`${candidate}-yes-balance`).textContent = '$0.00';
+    document.getElementById(`${candidate}-no-balance`).textContent = '$0.00';
     const claimBtn = document.getElementById(`${candidate}-claim-btn`);
     claimBtn.disabled = true;
     claimBtn.textContent = 'Contract Error';
+  }
+}
+
+async function updateSellButtons(candidate, position) {
+  // Update sell button states - simple enable/disable based on position
+  const yesSellBtn = document.querySelector(`[onclick*="cashoutPosition('${candidate}', true)"]`);
+  const noSellBtn = document.querySelector(`[onclick*="cashoutPosition('${candidate}', false)"]`);
+  
+  if (yesSellBtn) {
+    yesSellBtn.disabled = position.yesShares <= 0;
+    yesSellBtn.style.opacity = position.yesShares <= 0 ? '0.5' : '1';
+  }
+  
+  if (noSellBtn) {
+    noSellBtn.disabled = position.noShares <= 0;
+    noSellBtn.style.opacity = position.noShares <= 0 ? '0.5' : '1';
+  }
+}
+
+async function calculatePositionValue(candidate, shares, isTrue) {
+  if (shares <= 0 || !marketData[candidate].loaded) return 0;
+  
+  try {
+    const contractAddress = CONFIG.contracts[candidate];
+    const usdcValue = await callContractMethod(contractAddress, 'get_sell_price', [
+      shares,
+      isTrue
+    ]);
+    return Number(usdcValue) / 1_000_000;
+  } catch (error) {
+    return 0;
+  }
+}
+
+async function findSharesForUSDC(candidate, targetUSDC, maxShares, isTrue) {
+  const contractAddress = CONFIG.contracts[candidate];
+  
+  // Use binary search to find the right number of shares
+  let low = 1;
+  let high = maxShares;
+  let bestShares = 1;
+  
+  // Try a few iterations of binary search
+  for (let i = 0; i < 10 && low <= high; i++) {
+    const mid = Math.floor((low + high) / 2);
+    
+    try {
+      const usdcValue = await callContractMethod(contractAddress, 'get_sell_price', [
+        mid,
+        isTrue
+      ]);
+      const usdcAmount = Number(usdcValue) / 1_000_000;
+      
+      if (Math.abs(usdcAmount - targetUSDC) < 0.01) {
+        // Close enough
+        return mid;
+      } else if (usdcAmount < targetUSDC) {
+        // Need more shares
+        low = mid + 1;
+        bestShares = mid;
+      } else {
+        // Too many shares
+        high = mid - 1;
+      }
+    } catch (error) {
+      // If call fails, try fewer shares
+      high = mid - 1;
+    }
+  }
+  
+  return bestShares;
+}
+
+async function cashoutPosition(candidate, sellYes) {
+  if (isLoading) return;
+  
+  const amountInput = document.getElementById(`${candidate}-amount`);
+  const amount = parseFloat(amountInput.value);
+  
+  if (!amount || amount <= 0) {
+    showMessage('Please enter a valid amount to cashout', 'error');
+    return;
+  }
+  
+  try {
+    isLoading = true;
+    setLoadingState(candidate, true);
+    
+    const position = userPositions[candidate];
+    const availableShares = sellYes ? position.yesShares : position.noShares;
+    
+    if (availableShares <= 0) {
+      showMessage(`You don't have any ${sellYes ? 'YES' : 'NO'} position to cashout`, 'error');
+      return;
+    }
+    
+    // Convert USDC amount to shares to sell
+    // We need to find how many shares will give us approximately the desired USDC amount
+    let sharesToSell;
+    
+    // Get current total position value in USDC
+    const totalPositionValue = await calculatePositionValue(candidate, availableShares, sellYes);
+    
+    if (amount >= totalPositionValue) {
+      // User wants to cashout more than their total position - sell everything
+      sharesToSell = availableShares;
+      showMessage(`Cashing out entire position worth $${totalPositionValue.toFixed(2)}`, 'info');
+    } else {
+      // Calculate approximately how many shares to sell for target USDC amount
+      // Use binary search or estimation to find the right number of shares
+      sharesToSell = await findSharesForUSDC(candidate, amount, availableShares, sellYes);
+      
+      if (sharesToSell <= 0) {
+        showMessage('Unable to calculate shares for that amount', 'error');
+        return;
+      }
+    }
+    
+    if (sharesToSell <= 0) {
+      showMessage('Invalid cashout amount', 'error');
+      return;
+    }
+    
+    console.log(`Cashing out ${sharesToSell} shares (${sellYes ? 'YES' : 'NO'}) for ${candidate}`);
+    console.log(`Available shares before: YES=${position.yesShares}, NO=${position.noShares}`);
+    
+    
+    // Get the actual USDC value we'll receive
+    const actualUSDCValue = await calculatePositionValue(candidate, sharesToSell, sellYes);
+    showMessage(`Selling ${sharesToSell} ${sellYes ? 'YES' : 'NO'} shares ($${actualUSDCValue.toFixed(2)}) for ${getDisplayName(candidate)}...`, 'info');
+    
+    const contractAddress = CONFIG.contracts[candidate];
+    
+    const result = await callContractMethod(contractAddress, 'sell', [
+      keypair.publicKey(),
+      sharesToSell,
+      sellYes
+    ], true);
+    
+    console.log('Sell transaction result:', result);
+    
+    // Add a small delay to ensure transaction is settled
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    console.log('Refreshing data after sell...');
+    amountInput.value = '';
+    await loadMarketData();
+    await updateAllUserBalances();
+    await updateWalletInfo();
+    
+    // Log the new balances
+    const updatedPosition = userPositions[candidate];
+    console.log(`Available shares after: YES=${updatedPosition.yesShares}, NO=${updatedPosition.noShares}`);
+    
+    showMessage(
+      `Successfully cashed out ${sellYes ? 'YES' : 'NO'} position for ${getDisplayName(candidate)}!`, 
+      'success'
+    );
+  } catch (error) {
+    console.error('Cashout error:', error);
+    showMessage(`Failed to cashout position: ${error.message}`, 'error');
+  } finally {
+    isLoading = false;
+    setLoadingState(candidate, false);
   }
 }
 

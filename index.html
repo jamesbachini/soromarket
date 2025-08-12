@@ -32,43 +32,68 @@
           <div class="stat-value probability" id="vance-probability">...%</div>
         </div>
         <div class="stat">
-          <div class="stat-label">Total Volume</div>
+          <div class="stat-label">Trading Volume</div>
           <div class="stat-value" id="vance-volume">$0</div>
         </div>
       </div>
 
       <div class="betting-section">
-        <div class="bet-inputs">
-          <div class="bet-input-group">
-            <label>Amount (USDC)</label>
-            <input type="number" id="vance-amount" placeholder="10" min="1" step="1">
+        <!-- Price Display -->
+        <div class="price-display">
+          <div class="price-item">
+            <span class="price-label">YES</span>
+            <span class="price-value" id="vance-yes-price">$0.50</span>
+            <span class="reserve-value" id="vance-yes-reserve">$1,000</span>
           </div>
-          <div class="bet-input-group">
-            <label>Expected Shares</label>
-            <input type="text" id="vance-shares" readonly placeholder="0">
+          <div class="price-divider">|</div>
+          <div class="price-item">
+            <span class="price-label">NO</span>
+            <span class="price-value" id="vance-no-price">$0.50</span>
+            <span class="reserve-value" id="vance-no-reserve">$1,000</span>
           </div>
         </div>
         
-        <div class="bet-buttons">
+        <!-- Buy Buttons -->
+        <div class="buy-buttons">
           <button class="btn btn-yes" onclick="placeBet('vance', true)">
-            Buy YES <span id="vance-yes-price">$...</span>
+            Buy YES
           </button>
           <button class="btn btn-no" onclick="placeBet('vance', false)">
-            Buy NO <span id="vance-no-price">$...</span>
+            Buy NO
           </button>
         </div>
 
-        <div class="user-position">
-          <div class="shares-balance">
-            <div class="balance-item">
-              <span class="balance-label">Your YES shares:</span>
-              <span class="balance-value" id="vance-yes-balance">0</span>
-            </div>
-            <div class="balance-item">
-              <span class="balance-label">Your NO shares:</span>
-              <span class="balance-value" id="vance-no-balance">0</span>
-            </div>
+        <!-- Amount Input -->
+        <div class="amount-input">
+          <span class="amount-label">Amount</span>
+          <input type="number" id="vance-amount" class="amount-input" placeholder="0" min="1" step="1">
+          <span class="amount-currency">USDC</span>
+        </div>
+        
+        <!-- Sell Buttons -->
+        <div class="sell-buttons">
+          <button class="btn btn-sell btn-sell-yes" onclick="cashoutPosition('vance', true)">
+            Sell YES
+          </button>
+          <button class="btn btn-sell btn-sell-no" onclick="cashoutPosition('vance', false)">
+            Sell NO
+          </button>
+        </div>
+
+        <!-- Position Display -->
+        <div class="position-display">
+          <div class="position-item">
+            <span class="position-label">YES Position:</span>
+            <span class="position-value" id="vance-yes-balance">$0.00</span>
           </div>
+          <div class="position-item">
+            <span class="position-label">NO Position:</span>
+            <span class="position-value" id="vance-no-balance">$0.00</span>
+          </div>
+        </div>
+
+        <!-- Claim Button -->
+        <div class="claim-section">
           <button class="btn btn-claim" id="vance-claim-btn" onclick="claimWinnings('vance')" disabled>
             Claim Winnings
           </button>
@@ -87,43 +112,68 @@
           <div class="stat-value probability" id="newsom-probability">...%</div>
         </div>
         <div class="stat">
-          <div class="stat-label">Total Volume</div>
+          <div class="stat-label">Trading Volume</div>
           <div class="stat-value" id="newsom-volume">$0</div>
         </div>
       </div>
 
       <div class="betting-section">
-        <div class="bet-inputs">
-          <div class="bet-input-group">
-            <label>Amount (USDC)</label>
-            <input type="number" id="newsom-amount" placeholder="10" min="1" step="1">
+        <!-- Price Display -->
+        <div class="price-display">
+          <div class="price-item">
+            <span class="price-label">YES</span>
+            <span class="price-value" id="newsom-yes-price">$0.50</span>
+            <span class="reserve-value" id="newsom-yes-reserve">$1,000</span>
           </div>
-          <div class="bet-input-group">
-            <label>Expected Shares</label>
-            <input type="text" id="newsom-shares" readonly placeholder="0">
+          <div class="price-divider">|</div>
+          <div class="price-item">
+            <span class="price-label">NO</span>
+            <span class="price-value" id="newsom-no-price">$0.50</span>
+            <span class="reserve-value" id="newsom-no-reserve">$1,000</span>
           </div>
         </div>
         
-        <div class="bet-buttons">
+        <!-- Buy Buttons -->
+        <div class="buy-buttons">
           <button class="btn btn-yes" onclick="placeBet('newsom', true)">
-            Buy YES <span id="newsom-yes-price">$...</span>
+            Buy YES
           </button>
           <button class="btn btn-no" onclick="placeBet('newsom', false)">
-            Buy NO <span id="newsom-no-price">$...</span>
+            Buy NO
           </button>
         </div>
 
-        <div class="user-position">
-          <div class="shares-balance">
-            <div class="balance-item">
-              <span class="balance-label">Your YES shares:</span>
-              <span class="balance-value" id="newsom-yes-balance">0</span>
-            </div>
-            <div class="balance-item">
-              <span class="balance-label">Your NO shares:</span>
-              <span class="balance-value" id="newsom-no-balance">0</span>
-            </div>
+        <!-- Amount Input -->
+        <div class="amount-input">
+          <span class="amount-label">Amount</span>
+          <input type="number" id="newsom-amount" class="amount-input" placeholder="0" min="1" step="1">
+          <span class="amount-currency">USDC</span>
+        </div>
+        
+        <!-- Sell Buttons -->
+        <div class="sell-buttons">
+          <button class="btn btn-sell btn-sell-yes" onclick="cashoutPosition('newsom', true)">
+            Sell YES
+          </button>
+          <button class="btn btn-sell btn-sell-no" onclick="cashoutPosition('newsom', false)">
+            Sell NO
+          </button>
+        </div>
+
+        <!-- Position Display -->
+        <div class="position-display">
+          <div class="position-item">
+            <span class="position-label">YES Position:</span>
+            <span class="position-value" id="newsom-yes-balance">$0.00</span>
           </div>
+          <div class="position-item">
+            <span class="position-label">NO Position:</span>
+            <span class="position-value" id="newsom-no-balance">$0.00</span>
+          </div>
+        </div>
+
+        <!-- Claim Button -->
+        <div class="claim-section">
           <button class="btn btn-claim" id="newsom-claim-btn" onclick="claimWinnings('newsom')" disabled>
             Claim Winnings
           </button>
@@ -142,43 +192,68 @@
           <div class="stat-value probability" id="aoc-probability">...%</div>
         </div>
         <div class="stat">
-          <div class="stat-label">Total Volume</div>
+          <div class="stat-label">Trading Volume</div>
           <div class="stat-value" id="aoc-volume">$0</div>
         </div>
       </div>
 
       <div class="betting-section">
-        <div class="bet-inputs">
-          <div class="bet-input-group">
-            <label>Amount (USDC)</label>
-            <input type="number" id="aoc-amount" placeholder="10" min="1" step="1">
+        <!-- Price Display -->
+        <div class="price-display">
+          <div class="price-item">
+            <span class="price-label">YES</span>
+            <span class="price-value" id="aoc-yes-price">$0.50</span>
+            <span class="reserve-value" id="aoc-yes-reserve">$1,000</span>
           </div>
-          <div class="bet-input-group">
-            <label>Expected Shares</label>
-            <input type="text" id="aoc-shares" readonly placeholder="0">
+          <div class="price-divider">|</div>
+          <div class="price-item">
+            <span class="price-label">NO</span>
+            <span class="price-value" id="aoc-no-price">$0.50</span>
+            <span class="reserve-value" id="aoc-no-reserve">$1,000</span>
           </div>
         </div>
         
-        <div class="bet-buttons">
+        <!-- Buy Buttons -->
+        <div class="buy-buttons">
           <button class="btn btn-yes" onclick="placeBet('aoc', true)">
-            Buy YES <span id="aoc-yes-price">$...</span>
+            Buy YES
           </button>
           <button class="btn btn-no" onclick="placeBet('aoc', false)">
-            Buy NO <span id="aoc-no-price">$...</span>
+            Buy NO
           </button>
         </div>
 
-        <div class="user-position">
-          <div class="shares-balance">
-            <div class="balance-item">
-              <span class="balance-label">Your YES shares:</span>
-              <span class="balance-value" id="aoc-yes-balance">0</span>
-            </div>
-            <div class="balance-item">
-              <span class="balance-label">Your NO shares:</span>
-              <span class="balance-value" id="aoc-no-balance">0</span>
-            </div>
+        <!-- Amount Input -->
+        <div class="amount-input">
+          <span class="amount-label">Amount</span>
+          <input type="number" id="aoc-amount" class="amount-input" placeholder="0" min="1" step="1">
+          <span class="amount-currency">USDC</span>
+        </div>
+        
+        <!-- Sell Buttons -->
+        <div class="sell-buttons">
+          <button class="btn btn-sell btn-sell-yes" onclick="cashoutPosition('aoc', true)">
+            Sell YES
+          </button>
+          <button class="btn btn-sell btn-sell-no" onclick="cashoutPosition('aoc', false)">
+            Sell NO
+          </button>
+        </div>
+
+        <!-- Position Display -->
+        <div class="position-display">
+          <div class="position-item">
+            <span class="position-label">YES Position:</span>
+            <span class="position-value" id="aoc-yes-balance">$0.00</span>
           </div>
+          <div class="position-item">
+            <span class="position-label">NO Position:</span>
+            <span class="position-value" id="aoc-no-balance">$0.00</span>
+          </div>
+        </div>
+
+        <!-- Claim Button -->
+        <div class="claim-section">
           <button class="btn btn-claim" id="aoc-claim-btn" onclick="claimWinnings('aoc')" disabled>
             Claim Winnings
           </button>
@@ -197,43 +272,68 @@
           <div class="stat-value probability" id="buttigieg-probability">...%</div>
         </div>
         <div class="stat">
-          <div class="stat-label">Total Volume</div>
+          <div class="stat-label">Trading Volume</div>
           <div class="stat-value" id="buttigieg-volume">$0</div>
         </div>
       </div>
 
       <div class="betting-section">
-        <div class="bet-inputs">
-          <div class="bet-input-group">
-            <label>Amount (USDC)</label>
-            <input type="number" id="buttigieg-amount" placeholder="10" min="1" step="1">
+        <!-- Price Display -->
+        <div class="price-display">
+          <div class="price-item">
+            <span class="price-label">YES</span>
+            <span class="price-value" id="buttigieg-yes-price">$0.50</span>
+            <span class="reserve-value" id="buttigieg-yes-reserve">$1,000</span>
           </div>
-          <div class="bet-input-group">
-            <label>Expected Shares</label>
-            <input type="text" id="buttigieg-shares" readonly placeholder="0">
+          <div class="price-divider">|</div>
+          <div class="price-item">
+            <span class="price-label">NO</span>
+            <span class="price-value" id="buttigieg-no-price">$0.50</span>
+            <span class="reserve-value" id="buttigieg-no-reserve">$1,000</span>
           </div>
         </div>
         
-        <div class="bet-buttons">
+        <!-- Buy Buttons -->
+        <div class="buy-buttons">
           <button class="btn btn-yes" onclick="placeBet('buttigieg', true)">
-            Buy YES <span id="buttigieg-yes-price">$...</span>
+            Buy YES
           </button>
           <button class="btn btn-no" onclick="placeBet('buttigieg', false)">
-            Buy NO <span id="buttigieg-no-price">$...</span>
+            Buy NO
           </button>
         </div>
 
-        <div class="user-position">
-          <div class="shares-balance">
-            <div class="balance-item">
-              <span class="balance-label">Your YES shares:</span>
-              <span class="balance-value" id="buttigieg-yes-balance">0</span>
-            </div>
-            <div class="balance-item">
-              <span class="balance-label">Your NO shares:</span>
-              <span class="balance-value" id="buttigieg-no-balance">0</span>
-            </div>
+        <!-- Amount Input -->
+        <div class="amount-input">
+          <span class="amount-label">Amount</span>
+          <input type="number" id="buttigieg-amount" class="amount-input" placeholder="0" min="1" step="1">
+          <span class="amount-currency">USDC</span>
+        </div>
+        
+        <!-- Sell Buttons -->
+        <div class="sell-buttons">
+          <button class="btn btn-sell btn-sell-yes" onclick="cashoutPosition('buttigieg', true)">
+            Sell YES
+          </button>
+          <button class="btn btn-sell btn-sell-no" onclick="cashoutPosition('buttigieg', false)">
+            Sell NO
+          </button>
+        </div>
+
+        <!-- Position Display -->
+        <div class="position-display">
+          <div class="position-item">
+            <span class="position-label">YES Position:</span>
+            <span class="position-value" id="buttigieg-yes-balance">$0.00</span>
           </div>
+          <div class="position-item">
+            <span class="position-label">NO Position:</span>
+            <span class="position-value" id="buttigieg-no-balance">$0.00</span>
+          </div>
+        </div>
+
+        <!-- Claim Button -->
+        <div class="claim-section">
           <button class="btn btn-claim" id="buttigieg-claim-btn" onclick="claimWinnings('buttigieg')" disabled>
             Claim Winnings
           </button>
@@ -252,43 +352,68 @@
           <div class="stat-value probability" id="rubio-probability">...%</div>
         </div>
         <div class="stat">
-          <div class="stat-label">Total Volume</div>
+          <div class="stat-label">Trading Volume</div>
           <div class="stat-value" id="rubio-volume">$0</div>
         </div>
       </div>
 
       <div class="betting-section">
-        <div class="bet-inputs">
-          <div class="bet-input-group">
-            <label>Amount (USDC)</label>
-            <input type="number" id="rubio-amount" placeholder="10" min="1" step="1">
+        <!-- Price Display -->
+        <div class="price-display">
+          <div class="price-item">
+            <span class="price-label">YES</span>
+            <span class="price-value" id="rubio-yes-price">$0.50</span>
+            <span class="reserve-value" id="rubio-yes-reserve">$1,000</span>
           </div>
-          <div class="bet-input-group">
-            <label>Expected Shares</label>
-            <input type="text" id="rubio-shares" readonly placeholder="0">
+          <div class="price-divider">|</div>
+          <div class="price-item">
+            <span class="price-label">NO</span>
+            <span class="price-value" id="rubio-no-price">$0.50</span>
+            <span class="reserve-value" id="rubio-no-reserve">$1,000</span>
           </div>
         </div>
         
-        <div class="bet-buttons">
+        <!-- Buy Buttons -->
+        <div class="buy-buttons">
           <button class="btn btn-yes" onclick="placeBet('rubio', true)">
-            Buy YES <span id="rubio-yes-price">$...</span>
+            Buy YES
           </button>
           <button class="btn btn-no" onclick="placeBet('rubio', false)">
-            Buy NO <span id="rubio-no-price">$...</span>
+            Buy NO
           </button>
         </div>
 
-        <div class="user-position">
-          <div class="shares-balance">
-            <div class="balance-item">
-              <span class="balance-label">Your YES shares:</span>
-              <span class="balance-value" id="rubio-yes-balance">0</span>
-            </div>
-            <div class="balance-item">
-              <span class="balance-label">Your NO shares:</span>
-              <span class="balance-value" id="rubio-no-balance">0</span>
-            </div>
+        <!-- Amount Input -->
+        <div class="amount-input">
+          <span class="amount-label">Amount</span>
+          <input type="number" id="rubio-amount" class="amount-input" placeholder="0" min="1" step="1">
+          <span class="amount-currency">USDC</span>
+        </div>
+        
+        <!-- Sell Buttons -->
+        <div class="sell-buttons">
+          <button class="btn btn-sell btn-sell-yes" onclick="cashoutPosition('rubio', true)">
+            Sell YES
+          </button>
+          <button class="btn btn-sell btn-sell-no" onclick="cashoutPosition('rubio', false)">
+            Sell NO
+          </button>
+        </div>
+
+        <!-- Position Display -->
+        <div class="position-display">
+          <div class="position-item">
+            <span class="position-label">YES Position:</span>
+            <span class="position-value" id="rubio-yes-balance">$0.00</span>
           </div>
+          <div class="position-item">
+            <span class="position-label">NO Position:</span>
+            <span class="position-value" id="rubio-no-balance">$0.00</span>
+          </div>
+        </div>
+
+        <!-- Claim Button -->
+        <div class="claim-section">
           <button class="btn btn-claim" id="rubio-claim-btn" onclick="claimWinnings('rubio')" disabled>
             Claim Winnings
           </button>
@@ -307,43 +432,68 @@
           <div class="stat-value probability" id="beshear-probability">...%</div>
         </div>
         <div class="stat">
-          <div class="stat-label">Total Volume</div>
+          <div class="stat-label">Trading Volume</div>
           <div class="stat-value" id="beshear-volume">$0</div>
         </div>
       </div>
 
       <div class="betting-section">
-        <div class="bet-inputs">
-          <div class="bet-input-group">
-            <label>Amount (USDC)</label>
-            <input type="number" id="beshear-amount" placeholder="10" min="1" step="1">
+        <!-- Price Display -->
+        <div class="price-display">
+          <div class="price-item">
+            <span class="price-label">YES</span>
+            <span class="price-value" id="beshear-yes-price">$0.50</span>
+            <span class="reserve-value" id="beshear-yes-reserve">$1,000</span>
           </div>
-          <div class="bet-input-group">
-            <label>Expected Shares</label>
-            <input type="text" id="beshear-shares" readonly placeholder="0">
+          <div class="price-divider">|</div>
+          <div class="price-item">
+            <span class="price-label">NO</span>
+            <span class="price-value" id="beshear-no-price">$0.50</span>
+            <span class="reserve-value" id="beshear-no-reserve">$1,000</span>
           </div>
         </div>
         
-        <div class="bet-buttons">
+        <!-- Buy Buttons -->
+        <div class="buy-buttons">
           <button class="btn btn-yes" onclick="placeBet('beshear', true)">
-            Buy YES <span id="beshear-yes-price">$...</span>
+            Buy YES
           </button>
           <button class="btn btn-no" onclick="placeBet('beshear', false)">
-            Buy NO <span id="beshear-no-price">$...</span>
+            Buy NO
           </button>
         </div>
 
-        <div class="user-position">
-          <div class="shares-balance">
-            <div class="balance-item">
-              <span class="balance-label">Your YES shares:</span>
-              <span class="balance-value" id="beshear-yes-balance">0</span>
-            </div>
-            <div class="balance-item">
-              <span class="balance-label">Your NO shares:</span>
-              <span class="balance-value" id="beshear-no-balance">0</span>
-            </div>
+        <!-- Amount Input -->
+        <div class="amount-input">
+          <span class="amount-label">Amount</span>
+          <input type="number" id="beshear-amount" class="amount-input" placeholder="0" min="1" step="1">
+          <span class="amount-currency">USDC</span>
+        </div>
+        
+        <!-- Sell Buttons -->
+        <div class="sell-buttons">
+          <button class="btn btn-sell btn-sell-yes" onclick="cashoutPosition('beshear', true)">
+            Sell YES
+          </button>
+          <button class="btn btn-sell btn-sell-no" onclick="cashoutPosition('beshear', false)">
+            Sell NO
+          </button>
+        </div>
+
+        <!-- Position Display -->
+        <div class="position-display">
+          <div class="position-item">
+            <span class="position-label">YES Position:</span>
+            <span class="position-value" id="beshear-yes-balance">$0.00</span>
           </div>
+          <div class="position-item">
+            <span class="position-label">NO Position:</span>
+            <span class="position-value" id="beshear-no-balance">$0.00</span>
+          </div>
+        </div>
+
+        <!-- Claim Button -->
+        <div class="claim-section">
           <button class="btn btn-claim" id="beshear-claim-btn" onclick="claimWinnings('beshear')" disabled>
             Claim Winnings
           </button>

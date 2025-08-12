@@ -11,8 +11,7 @@ NETWORK="testnet"
 SOROMARKET_WASM_PATH="../../target/wasm32-unknown-unknown/release/soromarket.wasm"
 USDC_WASM_PATH="../../target/wasm32-unknown-unknown/release/usdc.wasm"
 ORACLE_ADDRESS="GD6ERVU2XC35LUZQ57JKTRF6DMCNF2JI5TFL7COH5FSQ4TZ2IBA3H55C" 
-LIQUIDITY_PARAM="500000"  # 50% liquidity parameter
-LIQUIDITY_AMOUNT="100000000"  # 100 USDC (6 decimals) per side
+INITIAL_RESERVE="1000000000"  # 1000 USDC (6 decimals) initial reserve per side
 
 # Colors for output
 RED='\033[0;31m'
@@ -117,36 +116,12 @@ for candidate in "${!CANDIDATES[@]}"; do
     echo "  📄 Contract ID: $CANDIDATE_CONTRACT_ID"
     CONTRACT_IDS[$candidate]=$CANDIDATE_CONTRACT_ID
     
-    # Setup the market
-    echo "  ⚙️  Initializing market..."
-    
-    setup_result=$(stellar contract invoke \
-        --id "$CANDIDATE_CONTRACT_ID" \
-        --source "$SOURCE_ACCOUNT" \
-        --network "$NETWORK" \
-        -- setup \
-        --oracle "$ORACLE_ADDRESS" \
-        --token "$USDC_CONTRACT_ID" \
-        --market "$description" \
-        --liquidity_param "$LIQUIDITY_PARAM" \
-        2>&1)
-    
-    if [ $? -eq 0 ]; then
-        echo -e "  ${GREEN}✅ Market initialized successfully${NC}"
-    else
-        echo -e "  ${RED}❌ Market initialization failed: $setup_result${NC}"
-        continue
-    fi
-    
-    # Note: Contract enforces single bet per user, so we'll provide initial YES liquidity
-    # Users can provide NO liquidity when they bet
-    
     # Get source account address
     SOURCE_ADDRESS=$(stellar keys address "$SOURCE_ACCOUNT" 2>/dev/null)
 
-    # Mint tokens for initial liquidity (100 USDC)
+    # Mint tokens for trading and initial liquidity
     echo "  💰 Minting USDC to: ${SOURCE_ADDRESS}"
-    MINT_AMOUNT=$((LIQUIDITY_AMOUNT * 3))
+    MINT_AMOUNT="10000000000"  # 10,000 USDC for testing
 
     stellar contract invoke \
         --id "$USDC_CONTRACT_ID" \
@@ -157,8 +132,8 @@ for candidate in "${!CANDIDATES[@]}"; do
         --amount "$MINT_AMOUNT" \
         2>/dev/null
 
-    # Approve spend - change live_until_ledger for mainnet
-    echo "  🎟️ Approving spend..."
+    # Approve spend for initial liquidity - change live_until_ledger for mainnet
+    echo "  🎟️ Approving spend for initial liquidity..."
     stellar contract invoke \
         --id "$USDC_CONTRACT_ID" \
         --source "$SOURCE_ACCOUNT" \
@@ -170,58 +145,27 @@ for candidate in "${!CANDIDATES[@]}"; do
         --live_until_ledger "3110400" \
         2>/dev/null
     
-    # Place bets to slowly build initial liquidity
-    echo "  📈 Placing 1 USDC initial liquidity bet on YES & 1 USDC on NO..."
-    INITIAL_AMOUNT=$((LIQUIDITY_AMOUNT / 100))
-
-    stellar contract invoke \
+    # Setup the market (this will transfer initial liquidity)
+    echo "  ⚙️  Initializing market with liquidity..."
+    
+    setup_result=$(stellar contract invoke \
         --id "$CANDIDATE_CONTRACT_ID" \
         --source "$SOURCE_ACCOUNT" \
         --network "$NETWORK" \
-        -- trade \
-        --user "$SOURCE_ADDRESS" \
-        --amount "$INITIAL_AMOUNT" \
-        --bet_on_true true \
-        2>/dev/null
+        -- setup \
+        --deployer "$SOURCE_ADDRESS" \
+        --oracle "$ORACLE_ADDRESS" \
+        --token "$USDC_CONTRACT_ID" \
+        --market "$description" \
+        --initial_reserve "$INITIAL_RESERVE" \
+        2>&1)
     
-    echo -e "  ${GREEN}✅ Added 1 USDC initial liquidity to YES side${NC}"
-
-    stellar contract invoke \
-        --id "$CANDIDATE_CONTRACT_ID" \
-        --source "$SOURCE_ACCOUNT" \
-        --network "$NETWORK" \
-        -- trade \
-        --user "$SOURCE_ADDRESS" \
-        --amount "$INITIAL_AMOUNT" \
-        --bet_on_true false \
-        2>/dev/null
-    
-    echo -e "  ${GREEN}✅ Added 1 USDC initial liquidity to NO side${NC}"
-
-    echo "  📈 Placing 100 USDC additional liquidity bet on YES & 100 USDC on NO..."
-    stellar contract invoke \
-        --id "$CANDIDATE_CONTRACT_ID" \
-        --source "$SOURCE_ACCOUNT" \
-        --network "$NETWORK" \
-        -- trade \
-        --user "$SOURCE_ADDRESS" \
-        --amount "$LIQUIDITY_AMOUNT" \
-        --bet_on_true true \
-        2>/dev/null
-    
-    echo -e "  ${GREEN}✅ Added 100 USDC initial liquidity to YES side${NC}"
-
-    stellar contract invoke \
-        --id "$CANDIDATE_CONTRACT_ID" \
-        --source "$SOURCE_ACCOUNT" \
-        --network "$NETWORK" \
-        -- trade \
-        --user "$SOURCE_ADDRESS" \
-        --amount "$LIQUIDITY_AMOUNT" \
-        --bet_on_true false \
-        2>/dev/null
-    
-    echo -e "  ${GREEN}✅ Added 100 USDC initial liquidity to NO side${NC}"
+    if [ $? -eq 0 ]; then
+        echo -e "  ${GREEN}✅ Market initialized with ${INITIAL_RESERVE} USDC reserves on each side${NC}"
+    else
+        echo -e "  ${RED}❌ Market initialization failed: $setup_result${NC}"
+        continue
+    fi
     echo ""
 done
 
@@ -232,8 +176,7 @@ cat > ../../contract-addresses.json << EOF
 {
   "network": "$NETWORK",
   "tokenContract": "$USDC_CONTRACT_ID",
-  "oracleAddress": "$ORACLE_ADDRESS", 
-  "liquidityParam": $LIQUIDITY_PARAM,
+  "oracleAddress": "$ORACLE_ADDRESS",
   "contracts": {
 EOF
 
@@ -262,7 +205,6 @@ echo "Network: $NETWORK"
 echo "Source Account: $SOURCE_ACCOUNT"
 echo "USDC Token Contract: $USDC_CONTRACT_ID"
 echo "Oracle Address: $ORACLE_ADDRESS"
-echo "Liquidity Parameter: $LIQUIDITY_PARAM"
 echo ""
 echo "Market Contracts:"
 for candidate in "${!CONTRACT_IDS[@]}"; do
