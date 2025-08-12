@@ -10,21 +10,27 @@
 <body>
 <div class="container">
   <header>
-    <h1>SoroMarket</h1>
+    <h1>SOROMARKET</h1>
     <p class="subheading">DECENTRALIZED PREDICTION MARKETS ON STELLAR</p>
-    <p class="subtitle">• 2028 US Presidential Election •</p>
     <div class="wallet-info" id="walletInfo">
       <span>Connecting wallet...</span>
     </div>
+    <div id="messageContainer"></div>
+    <p class="subtitle">• 2028 US Presidential Election •</p>
   </header>
 
-  <div id="messageContainer"></div>
+  
 
   <div class="markets-grid" id="marketsGrid">
     <!-- JD Vance -->
     <div class="market-card" data-candidate="vance">
-      <div class="candidate-name">JD Vance</div>
-      <div class="candidate-party">Republican Party</div>
+      <div class="candidate-header">
+        <img src="img/vance.png" alt="JD Vance" class="candidate-image">
+        <div class="candidate-info">
+          <div class="candidate-name">JD Vance</div>
+          <div class="candidate-party">Republican Party</div>
+        </div>
+      </div>
       
       <div class="market-stats">
         <div class="stat">
@@ -103,8 +109,13 @@
 
     <!-- Gavin Newsom -->
     <div class="market-card" data-candidate="newsom">
-      <div class="candidate-name">Gavin Newsom</div>
-      <div class="candidate-party">Democratic Party</div>
+      <div class="candidate-header">
+        <img src="img/newsom.png" alt="Gavin Newsom" class="candidate-image">
+        <div class="candidate-info">
+          <div class="candidate-name">Gavin Newsom</div>
+          <div class="candidate-party">Democratic Party</div>
+        </div>
+      </div>
       
       <div class="market-stats">
         <div class="stat">
@@ -183,8 +194,13 @@
 
     <!-- Alexandria Ocasio-Cortez -->
     <div class="market-card" data-candidate="aoc">
-      <div class="candidate-name">Alexandria Ocasio-Cortez</div>
-      <div class="candidate-party">Democratic Party</div>
+      <div class="candidate-header">
+        <img src="img/aoc.png" alt="Alexandria Ocasio-Cortez" class="candidate-image">
+        <div class="candidate-info">
+          <div class="candidate-name">Alexandria Ocasio-Cortez</div>
+          <div class="candidate-party">Democratic Party</div>
+        </div>
+      </div>
       
       <div class="market-stats">
         <div class="stat">
@@ -263,8 +279,13 @@
 
     <!-- Pete Buttigieg -->
     <div class="market-card" data-candidate="buttigieg">
-      <div class="candidate-name">Pete Buttigieg</div>
-      <div class="candidate-party">Democratic Party</div>
+      <div class="candidate-header">
+        <img src="img/buttigieg.png" alt="Pete Buttigieg" class="candidate-image">
+        <div class="candidate-info">
+          <div class="candidate-name">Pete Buttigieg</div>
+          <div class="candidate-party">Democratic Party</div>
+        </div>
+      </div>
       
       <div class="market-stats">
         <div class="stat">
@@ -343,8 +364,13 @@
 
     <!-- Marco Rubio -->
     <div class="market-card" data-candidate="rubio">
-      <div class="candidate-name">Marco Rubio</div>
-      <div class="candidate-party">Republican Party</div>
+      <div class="candidate-header">
+        <img src="img/rubio.png" alt="Marco Rubio" class="candidate-image">
+        <div class="candidate-info">
+          <div class="candidate-name">Marco Rubio</div>
+          <div class="candidate-party">Republican Party</div>
+        </div>
+      </div>
       
       <div class="market-stats">
         <div class="stat">
@@ -423,8 +449,13 @@
 
     <!-- Andy Beshear -->
     <div class="market-card" data-candidate="beshear">
-      <div class="candidate-name">Andy Beshear</div>
-      <div class="candidate-party">Democratic Party</div>
+      <div class="candidate-header">
+        <img src="img/beshear.png" alt="Andy Beshear" class="candidate-image">
+        <div class="candidate-info">
+          <div class="candidate-name">Andy Beshear</div>
+          <div class="candidate-party">Democratic Party</div>
+        </div>
+      </div>
       
       <div class="market-stats">
         <div class="stat">

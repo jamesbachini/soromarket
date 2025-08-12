@@ -1,3 +1,6 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Schabo&display=swap');
+
 :root {
   --bg1: #1a1b3e;
   --bg2: #080512;
@@ -37,8 +40,9 @@ header {
 }
 
 h1 {
-  font-size: 3rem;
-  font-weight: 800;
+  font-size: 4rem;
+  letter-spacing: 0.3rem;
+  font-family: 'Schabo', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   background: linear-gradient(90deg, var(--accent), #8b5cf6, #ec4899);
   background-clip: text;
   -webkit-background-clip: text;
@@ -53,7 +57,7 @@ h1 {
 }
 
 .subtitle {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   opacity: 0.8;
   margin-bottom: 2rem;
 }
@@ -110,18 +114,58 @@ h1 {
   background: linear-gradient(90deg, var(--accent), #8b5cf6, #ec4899);
 }
 
+.candidate-header {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.candidate-image {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--accent);
+  flex-shrink: 0;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.candidate-image:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
+}
+
+.candidate-image:error {
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+}
+
+.candidate-info {
+  flex: 1;
+}
+
 .candidate-name {
   font-size: 1.2rem;
   font-weight: 700;
-  margin-bottom: 0.5rem;
-  text-align: center;
+  margin-bottom: 0.2rem;
+  color: var(--txt);
+  line-height: 1.2;
 }
 
 .candidate-party {
-  text-align: center;
-  opacity: 0.7;
-  margin-bottom: 1.5rem;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
+  opacity: 0.8;
+  color: var(--accent);
+  line-height: 1;
 }
 
 .market-stats {
