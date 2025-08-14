@@ -220,12 +220,15 @@ function updateCandidatePrices(candidate) {
     document.getElementById(`${candidate}-no-price`).textContent = `$${noPrice.toFixed(2)}`;
   }
   
-  // Update reserves
-  const yesReserve = data.trueReserve || 0;
-  const noReserve = data.falseReserve || 0;
+  // Update reserves - show total pool value instead of individual reserves
+  // since the reserves are virtual AMM reserves, not actual deposit pools
+  const totalPool = (Number(data.trueReserve || 0) + Number(data.falseReserve || 0)) / 1_000_000;
+  const yesShare = totalPool * yesPrice;
+  const noShare = totalPool * noPrice;
+  
   if (document.getElementById(`${candidate}-yes-reserve`) && document.getElementById(`${candidate}-no-reserve`)) {
-    document.getElementById(`${candidate}-yes-reserve`).textContent = `$${(Number(yesReserve) / 1_000_000).toLocaleString()}`;
-    document.getElementById(`${candidate}-no-reserve`).textContent = `$${(Number(noReserve) / 1_000_000).toLocaleString()}`;
+    document.getElementById(`${candidate}-yes-reserve`).textContent = `$${yesShare.toLocaleString()}`;
+    document.getElementById(`${candidate}-no-reserve`).textContent = `$${noShare.toLocaleString()}`;
   }
 }
 
