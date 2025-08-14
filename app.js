@@ -153,17 +153,21 @@ async function loadMarketData() {
 async function loadCandidateData(candidate) {
   try {
     const contractAddress = CONFIG.contracts[candidate];
-    const [marketInfo, probabilities, marketState] = await Promise.all([
+    const [marketInfo, probabilities, marketState, deposits] = await Promise.all([
       callContractMethod(contractAddress, 'get_market_info'),
       callContractMethod(contractAddress, 'get_current_probabilities'), 
-      callContractMethod(contractAddress, 'get_market_state')
+      callContractMethod(contractAddress, 'get_market_state'),
+      callContractMethod(contractAddress, 'get_deposits')
     ]);
     // marketInfo returns (trueReserve, falseReserve, totalVolume)
+    // deposits returns (trueDeposits, falseDeposits)
     if (!marketInfo) return;
     marketData[candidate] = {
       trueReserve: marketInfo[0] || 0,
       falseReserve: marketInfo[1] || 0,
       totalVolume: marketInfo[2] || 0,
+      trueDeposits: deposits ? deposits[0] || 0 : 0,
+      falseDeposits: deposits ? deposits[1] || 0 : 0,
       state: marketState,
       probabilities: probabilities, // (trueProbability, falseProbability)
       loaded: true
@@ -176,6 +180,8 @@ async function loadCandidateData(candidate) {
       trueReserve: 0,
       falseReserve: 0,
       totalVolume: 0,
+      trueDeposits: 0,
+      falseDeposits: 0,
       state: null,
       probabilities: null,
       loaded: false
@@ -219,15 +225,13 @@ function updateCandidatePrices(candidate) {
     document.getElementById(`${candidate}-no-price`).textContent = `$${noPrice.toFixed(2)}`;
   }
   
-  // Update reserves - show total pool value instead of individual reserves
-  // since the reserves are virtual AMM reserves, not actual deposit pools
-  const totalPool = (Number(data.trueReserve || 0) + Number(data.falseReserve || 0)) / 1_000_000;
-  const yesShare = totalPool * yesPrice;
-  const noShare = totalPool * noPrice;
+  // Update reserves - show actual deposit amounts
+  const yesDeposits = (Number(data.trueDeposits || 0)) / 1_000_000;
+  const noDeposits = (Number(data.falseDeposits || 0)) / 1_000_000;
   
   if (document.getElementById(`${candidate}-yes-reserve`) && document.getElementById(`${candidate}-no-reserve`)) {
-    document.getElementById(`${candidate}-yes-reserve`).textContent = `$${yesShare.toLocaleString()}`;
-    document.getElementById(`${candidate}-no-reserve`).textContent = `$${noShare.toLocaleString()}`;
+    document.getElementById(`${candidate}-yes-reserve`).textContent = `$${yesDeposits.toLocaleString()}`;
+    document.getElementById(`${candidate}-no-reserve`).textContent = `$${noDeposits.toLocaleString()}`;
   }
 }
 

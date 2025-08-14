@@ -22,6 +22,8 @@ pub enum StorageKey {
     TrueReserve,
     FalseReserve,
     TotalVolume,
+    TrueDeposits,
+    FalseDeposits,
     UserTrueShares(Address),
     UserFalseShares(Address),
     Claimed(Address),
@@ -46,6 +48,8 @@ impl SoroMarket {
         store.set(&StorageKey::Token, &token);
         store.set(&StorageKey::TrueReserve, &initial_reserve);
         store.set(&StorageKey::FalseReserve, &initial_reserve);
+        store.set(&StorageKey::TrueDeposits, &initial_reserve);
+        store.set(&StorageKey::FalseDeposits, &initial_reserve);
         store.set(&StorageKey::TotalVolume, &total_liquidity);
         store.set(&StorageKey::Market, &market);
         store.set(&StorageKey::State, &Outcome::Undecided);
@@ -60,6 +64,8 @@ impl SoroMarket {
         let token: Address = store.get(&StorageKey::Token).unwrap();
         let mut true_reserve: i128 = store.get(&StorageKey::TrueReserve).unwrap();
         let mut false_reserve: i128 = store.get(&StorageKey::FalseReserve).unwrap();
+        let mut true_deposits: i128 = store.get(&StorageKey::TrueDeposits).unwrap();
+        let mut false_deposits: i128 = store.get(&StorageKey::FalseDeposits).unwrap();
         let k = true_reserve.checked_mul(false_reserve).expect("k overflow");
         let shares_received = if bet_on_true {
             let new_true_reserve = true_reserve.checked_add(amount).expect("reserve overflow");
@@ -68,6 +74,7 @@ impl SoroMarket {
             let shares = false_reserve - new_false_reserve;
             true_reserve = new_true_reserve;
             false_reserve = new_false_reserve;
+            true_deposits = true_deposits.checked_add(amount).expect("deposit overflow");
             shares
         } else {
             let new_false_reserve = false_reserve.checked_add(amount).expect("reserve overflow");
@@ -76,6 +83,7 @@ impl SoroMarket {
             let shares = true_reserve - new_true_reserve;
             false_reserve = new_false_reserve;
             true_reserve = new_true_reserve;
+            false_deposits = false_deposits.checked_add(amount).expect("deposit overflow");
             shares
         };
         assert!(shares_received > 0, "Zero shares received");
@@ -96,6 +104,8 @@ impl SoroMarket {
         let new_volume = current_volume.checked_add(amount).expect("volume overflow");
         store.set(&StorageKey::TrueReserve, &true_reserve);
         store.set(&StorageKey::FalseReserve, &false_reserve);
+        store.set(&StorageKey::TrueDeposits, &true_deposits);
+        store.set(&StorageKey::FalseDeposits, &false_deposits);
         store.set(&StorageKey::TotalVolume, &new_volume);
         store.set(&user_key, &new_user_shares);
     }
@@ -115,6 +125,8 @@ impl SoroMarket {
         assert!(current_shares >= shares, "Not enough shares to sell");
         let mut true_reserve: i128 = store.get(&StorageKey::TrueReserve).unwrap();
         let mut false_reserve: i128 = store.get(&StorageKey::FalseReserve).unwrap();
+        let mut true_deposits: i128 = store.get(&StorageKey::TrueDeposits).unwrap();
+        let mut false_deposits: i128 = store.get(&StorageKey::FalseDeposits).unwrap();
         let k = true_reserve.checked_mul(false_reserve).expect("k overflow");
         let payout = if bet_on_true {
             let new_false_reserve = false_reserve.checked_add(shares).expect("reserve overflow");
@@ -122,6 +134,7 @@ impl SoroMarket {
             let payout = true_reserve - new_true_reserve;
             true_reserve = new_true_reserve;
             false_reserve = new_false_reserve;
+            true_deposits = true_deposits.checked_sub(payout).expect("deposit underflow");
             payout
         } else {
             let new_true_reserve = true_reserve.checked_add(shares).expect("reserve overflow");
@@ -129,6 +142,7 @@ impl SoroMarket {
             let payout = false_reserve - new_false_reserve;
             false_reserve = new_false_reserve;
             true_reserve = new_true_reserve;
+            false_deposits = false_deposits.checked_sub(payout).expect("deposit underflow");
             payout
         };
         assert!(payout > 0, "Zero payout");
@@ -137,6 +151,8 @@ impl SoroMarket {
         let new_volume = current_volume.checked_add(payout).expect("volume overflow");
         store.set(&StorageKey::TrueReserve, &true_reserve);
         store.set(&StorageKey::FalseReserve, &false_reserve);
+        store.set(&StorageKey::TrueDeposits, &true_deposits);
+        store.set(&StorageKey::FalseDeposits, &false_deposits);
         store.set(&StorageKey::TotalVolume, &new_volume);
         store.set(&user_key, &new_user_shares);
         let token: Address = store.get(&StorageKey::Token).unwrap();
@@ -294,6 +310,13 @@ impl SoroMarket {
     pub fn get_constant_product(env: Env) -> i128 {
         let (true_reserve, false_reserve) = Self::get_reserves(env);
         true_reserve.checked_mul(false_reserve).expect("k overflow")
+    }
+
+    pub fn get_deposits(env: Env) -> (i128, i128) {
+        let store = env.storage().persistent();
+        let true_deposits: i128 = store.get(&StorageKey::TrueDeposits).unwrap();
+        let false_deposits: i128 = store.get(&StorageKey::FalseDeposits).unwrap();
+        (true_deposits, false_deposits)
     }
 }
 
