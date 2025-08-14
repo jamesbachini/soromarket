@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# SoroMarket Deployment Script
+# Soro.Market Deployment Script
 # Builds, deploys, and sets up prediction markets for 2028 US Election
 
 set -e  # Exit on any error
