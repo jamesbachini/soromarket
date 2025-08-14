@@ -229,12 +229,6 @@ function updateCandidatePrices(candidate) {
   }
 }
 
-
-function setupEventListeners() {
-  // Event listeners for the simplified UI - no complex dynamic button updates needed
-  console.log('Event listeners set up for simplified UI');
-}
-
 async function placeBet(candidate, betOnTrue) {
   if (isLoading) return;
   const amountInput = document.getElementById(`${candidate}-amount`);
@@ -342,17 +336,12 @@ async function callContractMethod(contractAddress, method, params = [], sendTx =
     try {
         const contract = new StellarSdk.Contract(contractAddress);
         const account = await rpc.getAccount(keypair.publicKey());
-
-        // Convert params to SCVals
         const convertedParams = params.map(param => {
             if (typeof param === 'string') {
                 if (param === 'live_until_ledger') return StellarSdk.nativeToScVal(3110400, { type: "u32" });
-                
                 if (param.length === 56 && (param.startsWith('G') || param.startsWith('C'))) {
-                    // Stellar address or contract ID
                     return StellarSdk.Address.fromString(param).toScVal();
                 }
-                // Treat as integer string
                 return StellarSdk.nativeToScVal(param, { type: "i128" });
             } else if (typeof param === 'number' || typeof param === 'bigint') {
                 return StellarSdk.nativeToScVal(BigInt(param), { type: "i128" });
@@ -366,7 +355,6 @@ async function callContractMethod(contractAddress, method, params = [], sendTx =
             networkPassphrase: CONFIG.networkPassphrase
         }).addOperation(contract.call(method, ...convertedParams)).setTimeout(30).build();
         tx = await rpc.prepareTransaction(tx);
-        // Send tx to RPC nodes
         if (sendTx) {
             tx.sign(keypair);
             const result = await rpc.sendTransaction(tx);
