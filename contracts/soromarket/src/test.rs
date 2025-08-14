@@ -33,8 +33,6 @@ fn setup(env: &Env) -> (
     let client = SoroMarketClient::new(&env, &contract_id);
     env.mock_all_auths();
     let initial = 1_000_i128;
-    
-    // Mint tokens for deployer (for initial liquidity) and bettors
     let initial_liquidity = 2000_i128; // 1000 for each side
     token_client.mint(&deployer, &initial_liquidity);
     token_client.approve(&deployer, &contract_id, &initial_liquidity, &0_u32);
@@ -154,16 +152,12 @@ fn multiple_bettors_correct_payouts() {
     mock_token.approve(&bettor3, &client.address, &initial, &0_u32);
     mock_token.mint(&bettor4, &initial);
     mock_token.approve(&bettor4, &client.address, &initial, &0_u32);
-    
-    // Buy shares with AMM model
     client.buy(&bettor1, &100, &true);
     client.buy(&bettor2, &200, &true);
     client.buy(&bettor3, &50, &false);
     client.buy(&bettor4, &100, &false);
-    
     let user1_shares = client.get_user_shares(&bettor1).0;
     let user2_shares = client.get_user_shares(&bettor2).0;
-    
     client.settle(&oracle, &true);
     let before1 = mock_token.balance(&bettor1);
     let before2 = mock_token.balance(&bettor2);
@@ -177,8 +171,6 @@ fn multiple_bettors_correct_payouts() {
     let after2 = mock_token.balance(&bettor2);
     let after3 = mock_token.balance(&bettor3);
     let after4 = mock_token.balance(&bettor4);
-    
-    // In AMM model, winners get their shares as payout
     assert_eq!(after1 - before1, user1_shares);
     assert_eq!(after2 - before2, user2_shares);
     assert_eq!(after3, before3); // Losers get nothing
@@ -189,7 +181,6 @@ fn multiple_bettors_correct_payouts() {
 fn test_initial_probabilities() {
     let env = Env::default();
     let (client, _, _, _, _, _) = setup(&env);
-    
     let probabilities = client.get_current_probabilities();
     const SCALE: i128 = 1_000_000;
     assert_eq!(probabilities, (SCALE / 2, SCALE / 2)); // Should be 50/50 for balanced reserves
@@ -199,13 +190,9 @@ fn test_initial_probabilities() {
 fn test_amm_initial_market_reserves() {
     let env = Env::default();
     let (client, _, _, bettor1, _, _) = setup(&env);
-    
     let market_info = client.get_market_info();
-    assert_eq!(market_info, (1000, 1000, 0)); // (true_reserve, false_reserve, total_volume) - reserves start at 1000, volume at 0
-    
-    // First buy increases one reserve
+    assert_eq!(market_info, (1000, 1000, 0)); 
     client.buy(&bettor1, &100, &true);
-    
     let market_info = client.get_market_info();
     assert_eq!(market_info.0, 1100); // true_reserve increased by 100
     assert!(market_info.1 < 1000); // false_reserve decreased due to AMM formula
@@ -216,19 +203,11 @@ fn test_amm_initial_market_reserves() {
 fn test_balanced_market_probabilities() {
     let env = Env::default();
     let (client, _, _, bettor1, bettor2, _) = setup(&env);
-    
-    // Buy equal amounts on both sides
     client.buy(&bettor1, &100, &true);
     client.buy(&bettor2, &100, &false);
-    
     let probabilities = client.get_current_probabilities();
     const SCALE: i128 = 1_000_000;
-    
-    // With AMM and equal investments, probabilities should be reasonably balanced
-    // They should sum to SCALE
     assert!((probabilities.0 + probabilities.1 - SCALE).abs() <= 1);
-    
-    // Neither side should be too extreme with equal investments
     assert!(probabilities.0 >= SCALE / 4); // At least 25%
     assert!(probabilities.0 <= 3 * SCALE / 4); // At most 75%
     assert!(probabilities.1 >= SCALE / 4); // At least 25%  
@@ -239,13 +218,9 @@ fn test_balanced_market_probabilities() {
 fn test_imbalanced_market_probabilities() {
     let env = Env::default();
     let (client, _, _, bettor1, bettor2, _) = setup(&env);
-    
-    // Create imbalanced market
     client.buy(&bettor1, &300, &true);
     client.buy(&bettor2, &100, &false);
-    
     let probabilities = client.get_current_probabilities();
-    // True should have higher probability after more money invested
     assert!(probabilities.0 > probabilities.1);
 }
 
@@ -253,16 +228,10 @@ fn test_imbalanced_market_probabilities() {
 fn test_amm_progressive_pricing() {
     let env = Env::default();
     let (client, _, _, bettor1, bettor2, _) = setup(&env);
-    
-    // First $100 buy on TRUE
     client.buy(&bettor1, &100, &true);
     let shares_first_100 = client.get_user_shares(&bettor1).0;
-    
-    // Second $100 buy on TRUE (should get fewer shares due to AMM slippage)
     client.buy(&bettor2, &100, &true);
     let shares_second_100 = client.get_user_shares(&bettor2).0;
-    
-    // With AMM, successive trades on same side get less favorable
     assert!(shares_first_100 > shares_second_100);
 }
 
@@ -270,16 +239,9 @@ fn test_amm_progressive_pricing() {
 fn test_constant_product_invariant() {
     let env = Env::default();
     let (client, _, _, bettor1, _, _) = setup(&env);
-    
     let initial_k = client.get_constant_product();
-    
-    // Buy some shares
     client.buy(&bettor1, &100, &true);
-    
     let after_buy_k = client.get_constant_product();
-    
-    // Constant product should remain the same (within rounding tolerance)
-    // Due to integer division, there might be small rounding errors
     let diff = if initial_k > after_buy_k { initial_k - after_buy_k } else { after_buy_k - initial_k };
     assert!(diff <= 1000, "Constant product changed by more than tolerance: {} vs {}", initial_k, after_buy_k);
 }
@@ -288,27 +250,18 @@ fn test_constant_product_invariant() {
 fn test_initial_market_equal_pricing() {
     let env = Env::default();
     let (client, _, _, _, _, _) = setup(&env);
-    
-    // In initial balanced market, both sides should have equal pricing
     let shares_true = client.get_buy_price(&100, &true);
     let shares_false = client.get_buy_price(&100, &false);
-    
-    assert_eq!(shares_true, shares_false); // Equal pricing
+    assert_eq!(shares_true, shares_false);
 }
 
 #[test] 
 fn test_minority_advantage_pricing() {
     let env = Env::default();
     let (client, _, _, bettor1, _, _) = setup(&env);
-    
-    // Create significant imbalance
     client.buy(&bettor1, &400, &true);
-    
-    // Now minority side (false) should give more shares for same cost
     let shares_true = client.get_buy_price(&100, &true);
     let shares_false = client.get_buy_price(&100, &false);
-
-    // Minority side should get more shares for same cost
     assert!(shares_false > shares_true);
 }
 
@@ -317,21 +270,13 @@ fn test_sell_functionality() {
     let env = Env::default();
     let (client, _, token_id, bettor1, _, _) = setup(&env);
     let mock_token = MockTokenClient::new(&env, &token_id);
-    
-    // Buy some shares
     client.buy(&bettor1, &100, &true);
     let shares = client.get_user_shares(&bettor1).0;
     let initial_balance = mock_token.balance(&bettor1);
-    
-    // Sell half the shares
     let shares_to_sell = shares / 2;
     client.sell(&bettor1, &shares_to_sell, &true);
-    
     let final_balance = mock_token.balance(&bettor1);
     let remaining_shares = client.get_user_shares(&bettor1).0;
-    
-    // Should have received some tokens back
     assert!(final_balance > initial_balance);
-    // Should have fewer shares
     assert_eq!(remaining_shares, shares - shares_to_sell);
 }

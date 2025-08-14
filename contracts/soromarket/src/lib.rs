@@ -35,8 +35,6 @@ impl SoroMarket {
         if store.get::<_, Address>(&StorageKey::Oracle).is_some() {
             panic!("Market already setup");
         }
-        
-        // Transfer initial liquidity from deployer to contract for both reserves
         let total_liquidity = initial_reserve.checked_mul(2).expect("liquidity overflow");
         TokenClient::new(&env, &token).transfer_from(
             &env.current_contract_address(),
@@ -44,7 +42,6 @@ impl SoroMarket {
             &env.current_contract_address(),
             &total_liquidity,
         );
-        
         store.set(&StorageKey::Oracle, &oracle);
         store.set(&StorageKey::Token, &token);
         store.set(&StorageKey::TrueReserve, &initial_reserve);
@@ -59,14 +56,11 @@ impl SoroMarket {
         let store = env.storage().persistent();
         let state: Outcome = store.get(&StorageKey::State).unwrap();
         assert_eq!(state, Outcome::Undecided, "Market not live");
-        assert!(amount > 0, "Amount must be positive");
-        
+        assert!(amount > 0, "Amount must be positive"); 
         let token: Address = store.get(&StorageKey::Token).unwrap();
         let mut true_reserve: i128 = store.get(&StorageKey::TrueReserve).unwrap();
         let mut false_reserve: i128 = store.get(&StorageKey::FalseReserve).unwrap();
-        
         let k = true_reserve.checked_mul(false_reserve).expect("k overflow");
-        
         let shares_received = if bet_on_true {
             let new_true_reserve = true_reserve.checked_add(amount).expect("reserve overflow");
             let new_false_reserve = k / new_true_reserve;
@@ -84,29 +78,22 @@ impl SoroMarket {
             true_reserve = new_true_reserve;
             shares
         };
-        
         assert!(shares_received > 0, "Zero shares received");
-        
         TokenClient::new(&env, &token).transfer_from(
             &env.current_contract_address(),
             &user,
             &env.current_contract_address(),
             &amount,
         );
-        
         let user_key = if bet_on_true {
             StorageKey::UserTrueShares(user.clone())
         } else {
             StorageKey::UserFalseShares(user.clone())
         };
-        
         let current_shares = store.get(&user_key).unwrap_or(0_i128);
         let new_user_shares = current_shares.checked_add(shares_received).expect("user shares overflow");
-        
-        // Update total volume
         let current_volume: i128 = store.get(&StorageKey::TotalVolume).unwrap_or(0);
         let new_volume = current_volume.checked_add(amount).expect("volume overflow");
-        
         store.set(&StorageKey::TrueReserve, &true_reserve);
         store.set(&StorageKey::FalseReserve, &false_reserve);
         store.set(&StorageKey::TotalVolume, &new_volume);
@@ -119,23 +106,17 @@ impl SoroMarket {
         let state: Outcome = store.get(&StorageKey::State).unwrap();
         assert_eq!(state, Outcome::Undecided, "Market not live");
         assert!(shares > 0, "Shares must be positive");
-        
         let user_key = if bet_on_true {
             StorageKey::UserTrueShares(user.clone())
         } else {
             StorageKey::UserFalseShares(user.clone())
         };
-        
         let current_shares = store.get(&user_key).unwrap_or(0_i128);
         assert!(current_shares >= shares, "Not enough shares to sell");
-        
         let mut true_reserve: i128 = store.get(&StorageKey::TrueReserve).unwrap();
         let mut false_reserve: i128 = store.get(&StorageKey::FalseReserve).unwrap();
-        
         let k = true_reserve.checked_mul(false_reserve).expect("k overflow");
-        
         let payout = if bet_on_true {
-            // Selling TRUE shares: return shares to false_reserve, remove USDC from true_reserve
             let new_false_reserve = false_reserve.checked_add(shares).expect("reserve overflow");
             let new_true_reserve = k / new_false_reserve;
             let payout = true_reserve - new_true_reserve;
@@ -143,7 +124,6 @@ impl SoroMarket {
             false_reserve = new_false_reserve;
             payout
         } else {
-            // Selling FALSE shares: return shares to true_reserve, remove USDC from false_reserve  
             let new_true_reserve = true_reserve.checked_add(shares).expect("reserve overflow");
             let new_false_reserve = k / new_true_reserve;
             let payout = false_reserve - new_false_reserve;
@@ -151,20 +131,14 @@ impl SoroMarket {
             true_reserve = new_true_reserve;
             payout
         };
-        
         assert!(payout > 0, "Zero payout");
-        
         let new_user_shares = current_shares - shares;
-        
-        // Update total volume (sell trades also count toward volume)
         let current_volume: i128 = store.get(&StorageKey::TotalVolume).unwrap_or(0);
         let new_volume = current_volume.checked_add(payout).expect("volume overflow");
-        
         store.set(&StorageKey::TrueReserve, &true_reserve);
         store.set(&StorageKey::FalseReserve, &false_reserve);
         store.set(&StorageKey::TotalVolume, &new_volume);
         store.set(&user_key, &new_user_shares);
-        
         let token: Address = store.get(&StorageKey::Token).unwrap();
         TokenClient::new(&env, &token).transfer(
             &env.current_contract_address(),
@@ -199,18 +173,15 @@ impl SoroMarket {
             .get(&StorageKey::Claimed(user.clone()))
             .unwrap_or(false);
         assert!(!already_claimed, "Already claimed");
-        
         let true_reserve: i128 = store.get(&StorageKey::TrueReserve).unwrap();
         let false_reserve: i128 = store.get(&StorageKey::FalseReserve).unwrap();
         let _total_pool = true_reserve + false_reserve;
-        
         let user_true: i128 = store
             .get(&StorageKey::UserTrueShares(user.clone()))
             .unwrap_or(0);
         let user_false: i128 = store
             .get(&StorageKey::UserFalseShares(user.clone()))
-            .unwrap_or(0);
-            
+            .unwrap_or(0); 
         let winnings = if state == Outcome::TrueOutcome && user_true > 0 {
             user_true
         } else if state == Outcome::FalseOutcome && user_false > 0 {
@@ -218,10 +189,8 @@ impl SoroMarket {
         } else {
             0
         };
-        
         store.set(&StorageKey::UserTrueShares(user.clone()), &0i128);
         store.set(&StorageKey::UserFalseShares(user.clone()), &0i128);
-        
         if winnings > 0 {
             let token: Address = store.get(&StorageKey::Token).unwrap();
             TokenClient::new(&env, &token).transfer(
@@ -237,9 +206,7 @@ impl SoroMarket {
         let store = env.storage().persistent();
         let true_reserve: i128 = store.get(&StorageKey::TrueReserve).unwrap();
         let false_reserve: i128 = store.get(&StorageKey::FalseReserve).unwrap();
-        
         let k = true_reserve.checked_mul(false_reserve).expect("k overflow");
-        
         if bet_on_true {
             let new_true_reserve = true_reserve.checked_add(amount).expect("reserve overflow");
             let new_false_reserve = k / new_true_reserve;
@@ -255,16 +222,12 @@ impl SoroMarket {
         let store = env.storage().persistent();
         let true_reserve: i128 = store.get(&StorageKey::TrueReserve).unwrap();
         let false_reserve: i128 = store.get(&StorageKey::FalseReserve).unwrap();
-        
         let k = true_reserve.checked_mul(false_reserve).expect("k overflow");
-        
         if bet_on_true {
-            // Selling TRUE shares: return shares to false_reserve, remove USDC from true_reserve
             let new_false_reserve = false_reserve.checked_add(shares).expect("reserve overflow");
             let new_true_reserve = k / new_false_reserve;
             true_reserve - new_true_reserve
         } else {
-            // Selling FALSE shares: return shares to true_reserve, remove USDC from false_reserve
             let new_true_reserve = true_reserve.checked_add(shares).expect("reserve overflow");
             let new_false_reserve = k / new_true_reserve;
             false_reserve - new_false_reserve
@@ -291,12 +254,8 @@ impl SoroMarket {
 
     pub fn get_user_shares(env: Env, user: Address) -> (i128, i128) {
         let store = env.storage().persistent();
-        let t = store
-            .get(&StorageKey::UserTrueShares(user.clone()))
-            .unwrap_or(0);
-        let f = store
-            .get(&StorageKey::UserFalseShares(user))
-            .unwrap_or(0);
+        let t = store.get(&StorageKey::UserTrueShares(user.clone())).unwrap_or(0);
+        let f = store.get(&StorageKey::UserFalseShares(user)).unwrap_or(0);
         (t, f)
     }
 
