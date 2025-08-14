@@ -85,7 +85,6 @@ function initializeMarketData() {
     
     updateWalletInfo();
     await loadMarketData();
-    setupEventListeners();
     updateAllUserBalances();
     
     // Start periodic updates
