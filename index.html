@@ -1,543 +1,71 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Soro.Market – 2028 US Election Prediction Markets</title>
-<script src="bundles/stellar-sdk.min.js"></script>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <title>World Cup 2026 Prediction Market</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #fff;
+      background: linear-gradient(180deg, #0b3d91 0%, #0d703c 100%);
+      background-attachment: fixed;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      text-align: center;
+    }
+    header {
+      margin-bottom: 2rem;
+    }
+    h1 {
+      font-size: 3rem;
+      margin: 0.5rem 0;
+    }
+    h2 {
+      font-size: 1.5rem;
+      margin: 0.5rem 0;
+      font-weight: 400;
+    }
+    .coming-soon {
+      font-size: 2rem;
+      font-weight: bold;
+      background: #ffd700;
+      color: #0b3d91;
+      padding: 0.5rem 1rem;
+      border-radius: 10px;
+      margin-top: 2rem;
+      display: inline-block;
+    }
+    .ball {
+      font-size: 5rem;
+      margin-bottom: 1rem;
+      animation: bounce 1.5s infinite;
+    }
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-20px); }
+    }
+    footer {
+      position: absolute;
+      bottom: 20px;
+      font-size: 0.9rem;
+      opacity: 0.8;
+    }
+  </style>
 </head>
 <body>
-<div class="container">
   <header>
-    <h1>SORO.MARKET</h1>
-    <p class="subheading">DECENTRALIZED PREDICTION MARKETS ON STELLAR</p>
-    <div class="wallet-info" id="walletInfo">
-      <span>Connecting wallet...</span>
-    </div>
-    <div id="messageContainer"></div>
-    <p class="subtitle">• 2028 US Presidential Election •</p>
+    <div class="ball">⚽</div>
+    <h1>World Cup 2026 Prediction Market</h1>
+    <h2>Bet on your favorite teams • Win big • Powered by blockchain</h2>
+    <div class="coming-soon">Coming Soon – 2026</div>
   </header>
-
-  
-
-  <div class="markets-grid" id="marketsGrid">
-    <!-- JD Vance -->
-    <div class="market-card" data-candidate="vance">
-      <div class="candidate-header">
-        <img src="img/vance.png" alt="JD Vance" class="candidate-image">
-        <div class="candidate-info">
-          <div class="candidate-name">JD Vance</div>
-          <div class="candidate-party">Republican Party</div>
-        </div>
-      </div>
-      
-      <div class="market-stats">
-        <div class="stat">
-          <div class="stat-label">Current Price</div>
-          <div class="stat-value probability" id="vance-probability">...%</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Trading Volume</div>
-          <div class="stat-value" id="vance-volume">$0</div>
-        </div>
-      </div>
-
-      <div class="betting-section">
-        <!-- Price Display -->
-        <div class="price-display">
-          <div class="price-item">
-            <span class="price-label">YES</span>
-            <span class="price-value" id="vance-yes-price">$0.50</span>
-            <span class="reserve-value" id="vance-yes-reserve">$1,000</span>
-          </div>
-          <div class="price-divider">|</div>
-          <div class="price-item">
-            <span class="price-label">NO</span>
-            <span class="price-value" id="vance-no-price">$0.50</span>
-            <span class="reserve-value" id="vance-no-reserve">$1,000</span>
-          </div>
-        </div>
-        
-        <!-- Buy Buttons -->
-        <div class="buy-buttons">
-          <button class="btn btn-yes" onclick="placeBet('vance', true)">
-            Buy YES
-          </button>
-          <button class="btn btn-no" onclick="placeBet('vance', false)">
-            Buy NO
-          </button>
-        </div>
-
-        <!-- Amount Input -->
-        <div class="amount-input">
-          <span class="amount-label">Amount</span>
-          <input type="number" id="vance-amount" class="amount-input" placeholder="0" min="1" step="1">
-          <span class="amount-currency">USDC</span>
-        </div>
-        
-        <!-- Sell Buttons -->
-        <div class="sell-buttons">
-          <button class="btn btn-sell btn-sell-yes" onclick="cashoutPosition('vance', true)">
-            Sell YES
-          </button>
-          <button class="btn btn-sell btn-sell-no" onclick="cashoutPosition('vance', false)">
-            Sell NO
-          </button>
-        </div>
-
-        <!-- Position Display -->
-        <div class="position-display">
-          <div class="position-item">
-            <span class="position-label">YES Position:</span>
-            <span class="position-value" id="vance-yes-balance">$0.00</span>
-          </div>
-          <div class="position-item">
-            <span class="position-label">NO Position:</span>
-            <span class="position-value" id="vance-no-balance">$0.00</span>
-          </div>
-        </div>
-
-        <!-- Claim Button -->
-        <div class="claim-section">
-          <button class="btn btn-claim" id="vance-claim-btn" onclick="claimWinnings('vance')" disabled>
-            Claim Winnings
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Gavin Newsom -->
-    <div class="market-card" data-candidate="newsom">
-      <div class="candidate-header">
-        <img src="img/newsom.png" alt="Gavin Newsom" class="candidate-image">
-        <div class="candidate-info">
-          <div class="candidate-name">Gavin Newsom</div>
-          <div class="candidate-party">Democratic Party</div>
-        </div>
-      </div>
-      
-      <div class="market-stats">
-        <div class="stat">
-          <div class="stat-label">Current Price</div>
-          <div class="stat-value probability" id="newsom-probability">...%</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Trading Volume</div>
-          <div class="stat-value" id="newsom-volume">$0</div>
-        </div>
-      </div>
-
-      <div class="betting-section">
-        <!-- Price Display -->
-        <div class="price-display">
-          <div class="price-item">
-            <span class="price-label">YES</span>
-            <span class="price-value" id="newsom-yes-price">$0.50</span>
-            <span class="reserve-value" id="newsom-yes-reserve">$1,000</span>
-          </div>
-          <div class="price-divider">|</div>
-          <div class="price-item">
-            <span class="price-label">NO</span>
-            <span class="price-value" id="newsom-no-price">$0.50</span>
-            <span class="reserve-value" id="newsom-no-reserve">$1,000</span>
-          </div>
-        </div>
-        
-        <!-- Buy Buttons -->
-        <div class="buy-buttons">
-          <button class="btn btn-yes" onclick="placeBet('newsom', true)">
-            Buy YES
-          </button>
-          <button class="btn btn-no" onclick="placeBet('newsom', false)">
-            Buy NO
-          </button>
-        </div>
-
-        <!-- Amount Input -->
-        <div class="amount-input">
-          <span class="amount-label">Amount</span>
-          <input type="number" id="newsom-amount" class="amount-input" placeholder="0" min="1" step="1">
-          <span class="amount-currency">USDC</span>
-        </div>
-        
-        <!-- Sell Buttons -->
-        <div class="sell-buttons">
-          <button class="btn btn-sell btn-sell-yes" onclick="cashoutPosition('newsom', true)">
-            Sell YES
-          </button>
-          <button class="btn btn-sell btn-sell-no" onclick="cashoutPosition('newsom', false)">
-            Sell NO
-          </button>
-        </div>
-
-        <!-- Position Display -->
-        <div class="position-display">
-          <div class="position-item">
-            <span class="position-label">YES Position:</span>
-            <span class="position-value" id="newsom-yes-balance">$0.00</span>
-          </div>
-          <div class="position-item">
-            <span class="position-label">NO Position:</span>
-            <span class="position-value" id="newsom-no-balance">$0.00</span>
-          </div>
-        </div>
-
-        <!-- Claim Button -->
-        <div class="claim-section">
-          <button class="btn btn-claim" id="newsom-claim-btn" onclick="claimWinnings('newsom')" disabled>
-            Claim Winnings
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Alexandria Ocasio-Cortez -->
-    <div class="market-card" data-candidate="aoc">
-      <div class="candidate-header">
-        <img src="img/aoc.png" alt="Alexandria Ocasio-Cortez" class="candidate-image">
-        <div class="candidate-info">
-          <div class="candidate-name">Alexandria Ocasio-Cortez</div>
-          <div class="candidate-party">Democratic Party</div>
-        </div>
-      </div>
-      
-      <div class="market-stats">
-        <div class="stat">
-          <div class="stat-label">Current Price</div>
-          <div class="stat-value probability" id="aoc-probability">...%</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Trading Volume</div>
-          <div class="stat-value" id="aoc-volume">$0</div>
-        </div>
-      </div>
-
-      <div class="betting-section">
-        <!-- Price Display -->
-        <div class="price-display">
-          <div class="price-item">
-            <span class="price-label">YES</span>
-            <span class="price-value" id="aoc-yes-price">$0.50</span>
-            <span class="reserve-value" id="aoc-yes-reserve">$1,000</span>
-          </div>
-          <div class="price-divider">|</div>
-          <div class="price-item">
-            <span class="price-label">NO</span>
-            <span class="price-value" id="aoc-no-price">$0.50</span>
-            <span class="reserve-value" id="aoc-no-reserve">$1,000</span>
-          </div>
-        </div>
-        
-        <!-- Buy Buttons -->
-        <div class="buy-buttons">
-          <button class="btn btn-yes" onclick="placeBet('aoc', true)">
-            Buy YES
-          </button>
-          <button class="btn btn-no" onclick="placeBet('aoc', false)">
-            Buy NO
-          </button>
-        </div>
-
-        <!-- Amount Input -->
-        <div class="amount-input">
-          <span class="amount-label">Amount</span>
-          <input type="number" id="aoc-amount" class="amount-input" placeholder="0" min="1" step="1">
-          <span class="amount-currency">USDC</span>
-        </div>
-        
-        <!-- Sell Buttons -->
-        <div class="sell-buttons">
-          <button class="btn btn-sell btn-sell-yes" onclick="cashoutPosition('aoc', true)">
-            Sell YES
-          </button>
-          <button class="btn btn-sell btn-sell-no" onclick="cashoutPosition('aoc', false)">
-            Sell NO
-          </button>
-        </div>
-
-        <!-- Position Display -->
-        <div class="position-display">
-          <div class="position-item">
-            <span class="position-label">YES Position:</span>
-            <span class="position-value" id="aoc-yes-balance">$0.00</span>
-          </div>
-          <div class="position-item">
-            <span class="position-label">NO Position:</span>
-            <span class="position-value" id="aoc-no-balance">$0.00</span>
-          </div>
-        </div>
-
-        <!-- Claim Button -->
-        <div class="claim-section">
-          <button class="btn btn-claim" id="aoc-claim-btn" onclick="claimWinnings('aoc')" disabled>
-            Claim Winnings
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Pete Buttigieg -->
-    <div class="market-card" data-candidate="buttigieg">
-      <div class="candidate-header">
-        <img src="img/buttigieg.png" alt="Pete Buttigieg" class="candidate-image">
-        <div class="candidate-info">
-          <div class="candidate-name">Pete Buttigieg</div>
-          <div class="candidate-party">Democratic Party</div>
-        </div>
-      </div>
-      
-      <div class="market-stats">
-        <div class="stat">
-          <div class="stat-label">Current Price</div>
-          <div class="stat-value probability" id="buttigieg-probability">...%</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Trading Volume</div>
-          <div class="stat-value" id="buttigieg-volume">$0</div>
-        </div>
-      </div>
-
-      <div class="betting-section">
-        <!-- Price Display -->
-        <div class="price-display">
-          <div class="price-item">
-            <span class="price-label">YES</span>
-            <span class="price-value" id="buttigieg-yes-price">$0.50</span>
-            <span class="reserve-value" id="buttigieg-yes-reserve">$1,000</span>
-          </div>
-          <div class="price-divider">|</div>
-          <div class="price-item">
-            <span class="price-label">NO</span>
-            <span class="price-value" id="buttigieg-no-price">$0.50</span>
-            <span class="reserve-value" id="buttigieg-no-reserve">$1,000</span>
-          </div>
-        </div>
-        
-        <!-- Buy Buttons -->
-        <div class="buy-buttons">
-          <button class="btn btn-yes" onclick="placeBet('buttigieg', true)">
-            Buy YES
-          </button>
-          <button class="btn btn-no" onclick="placeBet('buttigieg', false)">
-            Buy NO
-          </button>
-        </div>
-
-        <!-- Amount Input -->
-        <div class="amount-input">
-          <span class="amount-label">Amount</span>
-          <input type="number" id="buttigieg-amount" class="amount-input" placeholder="0" min="1" step="1">
-          <span class="amount-currency">USDC</span>
-        </div>
-        
-        <!-- Sell Buttons -->
-        <div class="sell-buttons">
-          <button class="btn btn-sell btn-sell-yes" onclick="cashoutPosition('buttigieg', true)">
-            Sell YES
-          </button>
-          <button class="btn btn-sell btn-sell-no" onclick="cashoutPosition('buttigieg', false)">
-            Sell NO
-          </button>
-        </div>
-
-        <!-- Position Display -->
-        <div class="position-display">
-          <div class="position-item">
-            <span class="position-label">YES Position:</span>
-            <span class="position-value" id="buttigieg-yes-balance">$0.00</span>
-          </div>
-          <div class="position-item">
-            <span class="position-label">NO Position:</span>
-            <span class="position-value" id="buttigieg-no-balance">$0.00</span>
-          </div>
-        </div>
-
-        <!-- Claim Button -->
-        <div class="claim-section">
-          <button class="btn btn-claim" id="buttigieg-claim-btn" onclick="claimWinnings('buttigieg')" disabled>
-            Claim Winnings
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Marco Rubio -->
-    <div class="market-card" data-candidate="rubio">
-      <div class="candidate-header">
-        <img src="img/rubio.png" alt="Marco Rubio" class="candidate-image">
-        <div class="candidate-info">
-          <div class="candidate-name">Marco Rubio</div>
-          <div class="candidate-party">Republican Party</div>
-        </div>
-      </div>
-      
-      <div class="market-stats">
-        <div class="stat">
-          <div class="stat-label">Current Price</div>
-          <div class="stat-value probability" id="rubio-probability">...%</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Trading Volume</div>
-          <div class="stat-value" id="rubio-volume">$0</div>
-        </div>
-      </div>
-
-      <div class="betting-section">
-        <!-- Price Display -->
-        <div class="price-display">
-          <div class="price-item">
-            <span class="price-label">YES</span>
-            <span class="price-value" id="rubio-yes-price">$0.50</span>
-            <span class="reserve-value" id="rubio-yes-reserve">$1,000</span>
-          </div>
-          <div class="price-divider">|</div>
-          <div class="price-item">
-            <span class="price-label">NO</span>
-            <span class="price-value" id="rubio-no-price">$0.50</span>
-            <span class="reserve-value" id="rubio-no-reserve">$1,000</span>
-          </div>
-        </div>
-        
-        <!-- Buy Buttons -->
-        <div class="buy-buttons">
-          <button class="btn btn-yes" onclick="placeBet('rubio', true)">
-            Buy YES
-          </button>
-          <button class="btn btn-no" onclick="placeBet('rubio', false)">
-            Buy NO
-          </button>
-        </div>
-
-        <!-- Amount Input -->
-        <div class="amount-input">
-          <span class="amount-label">Amount</span>
-          <input type="number" id="rubio-amount" class="amount-input" placeholder="0" min="1" step="1">
-          <span class="amount-currency">USDC</span>
-        </div>
-        
-        <!-- Sell Buttons -->
-        <div class="sell-buttons">
-          <button class="btn btn-sell btn-sell-yes" onclick="cashoutPosition('rubio', true)">
-            Sell YES
-          </button>
-          <button class="btn btn-sell btn-sell-no" onclick="cashoutPosition('rubio', false)">
-            Sell NO
-          </button>
-        </div>
-
-        <!-- Position Display -->
-        <div class="position-display">
-          <div class="position-item">
-            <span class="position-label">YES Position:</span>
-            <span class="position-value" id="rubio-yes-balance">$0.00</span>
-          </div>
-          <div class="position-item">
-            <span class="position-label">NO Position:</span>
-            <span class="position-value" id="rubio-no-balance">$0.00</span>
-          </div>
-        </div>
-
-        <!-- Claim Button -->
-        <div class="claim-section">
-          <button class="btn btn-claim" id="rubio-claim-btn" onclick="claimWinnings('rubio')" disabled>
-            Claim Winnings
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Andy Beshear -->
-    <div class="market-card" data-candidate="beshear">
-      <div class="candidate-header">
-        <img src="img/beshear.png" alt="Andy Beshear" class="candidate-image">
-        <div class="candidate-info">
-          <div class="candidate-name">Andy Beshear</div>
-          <div class="candidate-party">Democratic Party</div>
-        </div>
-      </div>
-      
-      <div class="market-stats">
-        <div class="stat">
-          <div class="stat-label">Current Price</div>
-          <div class="stat-value probability" id="beshear-probability">...%</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Trading Volume</div>
-          <div class="stat-value" id="beshear-volume">$0</div>
-        </div>
-      </div>
-
-      <div class="betting-section">
-        <!-- Price Display -->
-        <div class="price-display">
-          <div class="price-item">
-            <span class="price-label">YES</span>
-            <span class="price-value" id="beshear-yes-price">$0.50</span>
-            <span class="reserve-value" id="beshear-yes-reserve">$1,000</span>
-          </div>
-          <div class="price-divider">|</div>
-          <div class="price-item">
-            <span class="price-label">NO</span>
-            <span class="price-value" id="beshear-no-price">$0.50</span>
-            <span class="reserve-value" id="beshear-no-reserve">$1,000</span>
-          </div>
-        </div>
-        
-        <!-- Buy Buttons -->
-        <div class="buy-buttons">
-          <button class="btn btn-yes" onclick="placeBet('beshear', true)">
-            Buy YES
-          </button>
-          <button class="btn btn-no" onclick="placeBet('beshear', false)">
-            Buy NO
-          </button>
-        </div>
-
-        <!-- Amount Input -->
-        <div class="amount-input">
-          <span class="amount-label">Amount</span>
-          <input type="number" id="beshear-amount" class="amount-input" placeholder="0" min="1" step="1">
-          <span class="amount-currency">USDC</span>
-        </div>
-        
-        <!-- Sell Buttons -->
-        <div class="sell-buttons">
-          <button class="btn btn-sell btn-sell-yes" onclick="cashoutPosition('beshear', true)">
-            Sell YES
-          </button>
-          <button class="btn btn-sell btn-sell-no" onclick="cashoutPosition('beshear', false)">
-            Sell NO
-          </button>
-        </div>
-
-        <!-- Position Display -->
-        <div class="position-display">
-          <div class="position-item">
-            <span class="position-label">YES Position:</span>
-            <span class="position-value" id="beshear-yes-balance">$0.00</span>
-          </div>
-          <div class="position-item">
-            <span class="position-label">NO Position:</span>
-            <span class="position-value" id="beshear-no-balance">$0.00</span>
-          </div>
-        </div>
-
-        <!-- Claim Button -->
-        <div class="claim-section">
-          <button class="btn btn-claim" id="beshear-claim-btn" onclick="claimWinnings('beshear')" disabled>
-            Claim Winnings
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <footer class="footer">
-    <p><a href="https://github.com/jamesbachini/soromarket" target="_blank">open source</a> &amp; powered by <a href="https://stellar.org/" target="_blank">Stellar</a></p>
-    <p>• fair, transparent, decentralized •</p>
+  <footer>
+    &copy; 2025 World Cup Prediction Market. All rights reserved.
   </footer>
-</div>
-<script src="app.js"></script>
 </body>
 </html>
