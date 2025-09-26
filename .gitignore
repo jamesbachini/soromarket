@@ -8,6 +8,6 @@ target
 # User
 CLAUDE.md
 contracts/soromarket/test_snapshots
-
+contracts/test_snapshots
 
 /bundles/js-stellar-sdk

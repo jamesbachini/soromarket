@@ -4,7 +4,9 @@
       "Bash(cargo test)",
       "Bash(stellar contract build:*)",
       "Bash(rustc --version)",
-      "Bash(cargo update:*)"
+      "Bash(cargo update:*)",
+      "Bash(cargo test:*)",
+      "Bash(timeout 300 cargo test)"
     ],
     "deny": []
   }
