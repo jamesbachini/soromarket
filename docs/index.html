@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SoroMarket - World Cup 2026 Prediction Markets</title>
+    <meta name="description" content="Bet on World Cup 2026 matches with decentralized prediction markets on Stellar Soroban">
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.2.0/dist/stellar-sdk.min.js"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="nav">
+                <div class="logo">
+                    <div class="logo-icon">🏆</div>
+                    <div class="logo-content">
+                        <span class="logo-text">SoroMarket</span>
+                        <span class="logo-tagline">World Cup 2026</span>
+                    </div>
+                </div>
+                <div class="nav-right">
+                    <div class="wallet-info">
+                        <span id="wallet-address" class="wallet-address">Connect Wallet</span>
+                        <span id="balance-display" class="balance">$0.00</span>
+                    </div>
+                    <button id="connect-wallet" class="btn btn-primary">
+                        <span>Connect Wallet</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <!-- Hero Section -->
+            <section class="hero">
+                <div class="hero-background">
+                    <div class="hero-pattern"></div>
+                    <div class="hero-gradient"></div>
+                </div>
+                <div class="hero-content">
+                    <div class="hero-badge">
+                        <span class="badge-icon">⚽</span>
+                        <span>FIFA World Cup 2026</span>
+                    </div>
+                    <h1 class="hero-title">
+                        <span class="title-line">Decentralized</span>
+                        <span class="title-line highlight">Prediction Markets</span>
+                    </h1>
+                    <p class="hero-subtitle">
+                        Bet on match outcomes with real USD backed by USDC on Stellar Soroban blockchain
+                    </p>
+                    <div class="hero-stats">
+                        <div class="stat-card">
+                            <div class="stat-icon">💰</div>
+                            <div class="stat-info">
+                                <div class="stat-value" id="total-liquidity">$0</div>
+                                <div class="stat-label">Total Liquidity Pool</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">🎯</div>
+                            <div class="stat-info">
+                                <div class="stat-value" id="active-markets">0</div>
+                                <div class="stat-label">Live Matches</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">⚡</div>
+                            <div class="stat-info">
+                                <div class="stat-value">Instant</div>
+                                <div class="stat-label">Payouts</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Wallet Management -->
+            <section class="wallet-section" id="wallet-section" style="display: none;">
+                <div class="card wallet-card">
+                    <div class="card-header">
+                        <h2 class="section-title">💳 Your Wallet</h2>
+                    </div>
+                    <div class="balance-card">
+                        <div class="balance-info">
+                            <div class="balance-label">Available Balance</div>
+                            <div class="balance-amount" id="user-balance">$0.00</div>
+                        </div>
+                    </div>
+                    <div class="balance-actions">
+                        <div class="action-group">
+                            <label>Deposit Funds</label>
+                            <div class="input-with-button">
+                                <input type="number" id="deposit-amount" placeholder="0.00" step="0.01" min="0">
+                                <button id="deposit-btn" class="btn btn-success">
+                                    <span>Deposit</span>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="action-group">
+                            <label>Withdraw Funds</label>
+                            <div class="input-with-button">
+                                <input type="number" id="withdraw-amount" placeholder="0.00" step="0.01" min="0">
+                                <button id="withdraw-btn" class="btn btn-secondary">
+                                    <span>Withdraw</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Markets Section -->
+            <section class="markets-section">
+                <div class="section-header">
+                    <div class="section-title-group">
+                        <h2 class="section-title">⚽ Live Matches</h2>
+                        <p class="section-subtitle">Place your bets on upcoming World Cup matches</p>
+                    </div>
+                </div>
+                <div id="markets-container" class="markets-grid">
+                    <!-- Markets will be dynamically loaded here -->
+                </div>
+                <div id="no-markets" class="no-markets" style="display: none;">
+                    <div class="no-markets-content">
+                        <div class="no-markets-icon">🏆</div>
+                        <h3>No Active Markets</h3>
+                        <p>Check back soon for World Cup 2026 matches!</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- My Bets Section -->
+            <section class="my-bets-section" id="my-bets-section" style="display: none;">
+                <div class="section-header">
+                    <div class="section-title-group">
+                        <h2 class="section-title">🎫 My Bets</h2>
+                        <p class="section-subtitle">Track your active and settled bets</p>
+                    </div>
+                </div>
+                <div id="my-bets-container" class="bets-grid">
+                    <!-- User's bets will be displayed here -->
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Betting Modal -->
+    <div id="betting-modal" class="modal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title-group">
+                    <h3 id="modal-title">🎯 Place Bet</h3>
+                </div>
+                <button class="modal-close" id="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="bet-details">
+                    <div class="match-info-card">
+                        <div class="match-info">
+                            <div id="modal-match-title" class="match-title"></div>
+                            <div id="modal-match-time" class="match-time"></div>
+                        </div>
+                    </div>
+                    <div class="outcome-selected">
+                        <div class="outcome-label">Selected Outcome</div>
+                        <div class="selected-outcome-content">
+                            <div id="selected-outcome" class="outcome-name"></div>
+                            <div id="selected-odds" class="outcome-odds"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bet-form">
+                    <div class="input-group">
+                        <label for="bet-amount">Bet Amount (USD)</label>
+                        <div class="input-wrapper">
+                            <span class="input-prefix">$</span>
+                            <input type="number" id="bet-amount" placeholder="0.00" step="0.01" min="0.01">
+                        </div>
+                    </div>
+                    <div class="payout-info">
+                        <div class="payout-row">
+                            <span class="payout-label">Potential Payout:</span>
+                            <span id="potential-payout" class="payout-value">$0.00</span>
+                        </div>
+                        <div class="payout-row highlight">
+                            <span class="payout-label">Potential Profit:</span>
+                            <span id="potential-profit" class="payout-value profit">$0.00</span>
+                        </div>
+                    </div>
+                    <button id="place-bet-btn" class="btn btn-primary btn-large btn-gradient">
+                        <span>Confirm Bet</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Messages -->
+    <div id="status-message" class="status-message"></div>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-main">
+                    <div class="footer-brand">
+                        <div class="logo">
+                            <div class="logo-icon">🏆</div>
+                            <div class="logo-content">
+                                <span class="logo-text">SoroMarket</span>
+                                <span class="logo-tagline">World Cup 2026</span>
+                                <span class="logo-link">https://soro.market</span>
+                            </div>
+                        </div>
+    
+                    </div>
+                    <div class="footer-links">
+                        <div class="footer-link-group">
+                            <div><a href="https://stellar.org" target="_blank" rel="noopener">Powered By  Stellar</a></div>
+                            <div><a href="index.html">Home</a> / <a href="admin.html">Admin</a></div>
+                            <div><a href="https://github.com/jamesbachini/soromarket" target="_blank">Open-source on Github</a></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="footer-bottom">
+                    <p>&copy; 2025 SoroMarket. Decentralized Prediction Market</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

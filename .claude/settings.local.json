@@ -6,7 +6,8 @@
       "Bash(rustc --version)",
       "Bash(cargo update:*)",
       "Bash(cargo test:*)",
-      "Bash(timeout 300 cargo test)"
+      "Bash(timeout 300 cargo test)",
+      "Bash(mkdir:*)"
     ],
     "deny": []
   }

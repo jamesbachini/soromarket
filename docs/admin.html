@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - SoroMarket</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@stellar/stellar-sdk@14.2.0/dist/stellar-sdk.min.js"></script>
+</head>
+<body class="admin-body">
+    <header class="header admin-header">
+        <div class="container">
+            <div class="nav">
+                <div class="logo">
+                    <span class="logo-icon">⚙️</span>
+                    <span class="logo-text">SoroMarket Admin</span>
+                </div>
+                <div class="nav-right">
+                    <div class="wallet-info">
+                        <span id="admin-wallet-address">Connect Admin Wallet</span>
+                    </div>
+                    <button id="connect-admin-wallet" class="btn btn-primary">Connect</button>
+                    <button id="clear-admin-key" class="btn btn-danger" style="display: none;">Clear Key</button>
+                    <a href="index.html" class="btn btn-secondary">Back to Market</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="main admin-main">
+        <div class="container">
+            <!-- Contract Status -->
+            <section class="admin-section">
+                <div class="card">
+                    <h2 class="section-title">Contract Status</h2>
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <div class="status-label">Contract ID</div>
+                            <div class="status-value contract-id">CACHJPERNE4R4R6UUSSE3RDMNGXWIFALBDIX3CSYIIF7L2K56622WZPO</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Network</div>
+                            <div class="status-value">Stellar Testnet</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Initialized</div>
+                            <div class="status-value" id="contract-initialized">Checking...</div>
+                        </div>
+                        <div class="status-item">
+                            <div class="status-label">Total Liquidity</div>
+                            <div class="status-value" id="admin-total-liquidity">$0.00</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Initialize Contract -->
+            <section class="admin-section" id="initialize-section">
+                <div class="card">
+                    <h2 class="section-title">Initialize Contract</h2>
+                    <p class="section-subtitle">Initialize the contract if not already done. This can only be done once.</p>
+                    <button id="initialize-contract" class="btn btn-primary btn-large">Initialize Contract</button>
+                </div>
+            </section>
+
+            <!-- Liquidity Management -->
+            <section class="admin-section">
+                <div class="card">
+                    <h2 class="section-title">Liquidity Management</h2>
+                    <div class="form-grid">
+                        <div class="form-section">
+                            <h3>Provide Initial Liquidity</h3>
+                            <div class="input-group">
+                                <label for="liquidity-amount">Amount (USD)</label>
+                                <input type="number" id="liquidity-amount" placeholder="1000.00" step="0.01" min="0">
+                            </div>
+                            <button id="provide-liquidity" class="btn btn-success">Provide Liquidity</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Market Creation -->
+            <section class="admin-section">
+                <div class="card">
+                    <h2 class="section-title">Create New Market</h2>
+                    <div class="form-grid">
+                        <div class="form-section full-width">
+                            <div class="input-group">
+                                <label for="market-title">Match Title</label>
+                                <input type="text" id="market-title" placeholder="e.g., Brazil vs Argentina - World Cup Final">
+                            </div>
+                            <div class="input-group">
+                                <label for="market-start-time">Match Start Time</label>
+                                <input type="datetime-local" id="market-start-time">
+                            </div>
+                        </div>
+                        <div class="odds-section">
+                            <h3>Set Odds (must sum to $0.99)</h3>
+                            <div class="odds-grid">
+                                <div class="odds-input">
+                                    <label for="home-odds">Home Win Odds</label>
+                                    <input type="number" id="home-odds" placeholder="0.40" step="0.01" min="0.01" max="0.97">
+                                </div>
+                                <div class="odds-input">
+                                    <label for="draw-odds">Draw Odds</label>
+                                    <input type="number" id="draw-odds" placeholder="0.30" step="0.01" min="0.01" max="0.97">
+                                </div>
+                                <div class="odds-input">
+                                    <label for="away-odds">Away Win Odds</label>
+                                    <input type="number" id="away-odds" placeholder="0.29" step="0.01" min="0.01" max="0.97">
+                                </div>
+                            </div>
+                            <div class="odds-sum">
+                                <span>Total: $<span id="odds-sum">0.00</span></span>
+                                <span id="odds-validation" class="validation-message"></span>
+                            </div>
+                        </div>
+                        <button id="create-market" class="btn btn-primary btn-large">Create Market</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Market Management -->
+            <section class="admin-section">
+                <div class="card">
+                    <h2 class="section-title">Manage Markets</h2>
+                    <div id="admin-markets-container" class="admin-markets">
+                        <!-- Markets will be loaded here -->
+                    </div>
+                    <div id="admin-no-markets" class="no-markets" style="display: none;">
+                        <p>No markets found</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Settlement -->
+            <section class="admin-section">
+                <div class="card">
+                    <h2 class="section-title">Settle Market</h2>
+                    <div class="form-grid">
+                        <div class="form-section">
+                            <div class="input-group">
+                                <label for="settle-market-id">Market ID</label>
+                                <input type="number" id="settle-market-id" placeholder="1" min="0">
+                            </div>
+                            <div class="input-group">
+                                <label for="winning-outcome">Winning Outcome</label>
+                                <select id="winning-outcome">
+                                    <option value="">Select outcome...</option>
+                                    <option value="0">Home Win</option>
+                                    <option value="1">Draw</option>
+                                    <option value="2">Away Win</option>
+                                </select>
+                            </div>
+                            <button id="settle-market" class="btn btn-warning btn-large">Settle Market</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Archive Market -->
+            <section class="admin-section">
+                <div class="card">
+                    <h2 class="section-title">Archive Market</h2>
+                    <div class="form-grid">
+                        <div class="form-section">
+                            <div class="input-group">
+                                <label for="archive-market-id">Market ID</label>
+                                <input type="number" id="archive-market-id" placeholder="1" min="0">
+                            </div>
+                            <button id="archive-market" class="btn btn-danger">Archive Market</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Admin Secret Key Modal -->
+    <div id="admin-key-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Admin Authentication</h3>
+                <button class="modal-close" id="close-key-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="section-subtitle">Enter your admin secret key (the key that deployed the contract):</p>
+                <div class="input-group">
+                    <label for="admin-secret-key">Secret Key</label>
+                    <input type="password" id="admin-secret-key" placeholder="S..." maxlength="56">
+                    <small style="color: #666; font-size: 0.8rem;">Your key will be stored securely in localStorage</small>
+                </div>
+                <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                    <button id="connect-with-key" class="btn btn-primary btn-large" style="flex: 1;">Connect</button>
+                    <button id="cancel-key-modal" class="btn btn-secondary" style="flex: 1;">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Messages -->
+    <div id="admin-status-message" class="status-message"></div>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <span class="logo-icon">⚙️</span>
+                    <span class="logo-text">SoroMarket Admin</span>
+                </div>
+                <div class="footer-links">
+                    <a href="https://soro.market">soro.market</a>
+                    <a href="index.html">Main Site</a>
+                    <a href="https://stellar.org" target="_blank">Powered by Stellar</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+    <script>
+        // Initialize admin-specific functionality when DOM loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set admin mode
+            window.isAdminMode = true;
+
+            // Initialize admin interface
+            initializeAdmin();
+        });
+    </script>
+</body>
+</html>
