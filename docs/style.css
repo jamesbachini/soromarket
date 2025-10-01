@@ -1443,20 +1443,6 @@ input::placeholder {
     border-bottom: none;
 }
 
-.admin-header .logo,
-.admin-header .wallet-info,
-.admin-header .nav-right * {
-    color: white;
-}
-
-.admin-header .logo-text {
-    -webkit-text-fill-color: white;
-}
-
-.admin-header .logo-tagline {
-    color: rgba(255, 255, 255, 0.9);
-}
-
 .admin-header .balance {
     background: rgba(255, 255, 255, 0.2);
     color: white;
