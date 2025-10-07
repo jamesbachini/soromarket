@@ -35,7 +35,7 @@ function showStatus(message, type = 'info') {
 
 function formatAmount(amount) {
     // Convert BigInt to Number if needed
-    const numAmount = typeof amount === 'bigint' ? Number(amount) : amount;
+    const numAmount = typeof amount === 'bigint' ? Number(amount) : (typeof amount === 'number' ? amount : 0);
     return (numAmount / CONFIG.decimals).toFixed(2);
 }
 
@@ -49,7 +49,9 @@ function formatAddress(address) {
 }
 
 function formatDateTime(timestamp) {
-    return new Date(timestamp * 1000).toLocaleString();
+    // Convert BigInt to Number if needed
+    const numTimestamp = typeof timestamp === 'bigint' ? Number(timestamp) : timestamp;
+    return new Date(numTimestamp * 1000).toLocaleString();
 }
 
 // Create and fund a testnet account
@@ -66,6 +68,9 @@ async function createFundedAccount() {
 
         // Wait for account to be funded
         await new Promise(resolve => setTimeout(resolve, 3000));
+
+        // Save wallet to localStorage
+        saveUserWallet(kp.secret());
 
         showStatus('Account created and funded!', 'success');
         return kp;
@@ -87,6 +92,19 @@ function getAdminKey() {
 
 function clearAdminKey() {
     localStorage.removeItem('soromarket_admin_key');
+}
+
+// User wallet management
+function saveUserWallet(secretKey) {
+    localStorage.setItem('soromarket_user_wallet', secretKey);
+}
+
+function getUserWallet() {
+    return localStorage.getItem('soromarket_user_wallet');
+}
+
+function clearUserWallet() {
+    localStorage.removeItem('soromarket_user_wallet');
 }
 
 // Connect admin wallet with secret key
@@ -151,7 +169,14 @@ async function connectWallet() {
             }
         }
 
-        keypair = await createFundedAccount();
+        // Check if user wallet is already stored
+        const storedWallet = getUserWallet();
+        if (storedWallet) {
+            keypair = StellarSdk.Keypair.fromSecret(storedWallet);
+            showStatus('Wallet restored from storage', 'success');
+        } else {
+            keypair = await createFundedAccount();
+        }
 
         // Update UI
         const addressEl = document.getElementById('wallet-address') || document.getElementById('admin-wallet-address');
@@ -290,7 +315,8 @@ async function readContract(method, ...args) {
                 }
                 return StellarSdk.nativeToScVal(arg, { type: 'string' });
             } else if (typeof arg === 'bigint') {
-                return StellarSdk.nativeToScVal(arg, { type: 'u64' });
+                // For read operations, u64 is fine for market IDs
+                return StellarSdk.nativeToScVal(Number(arg), { type: 'u64' });
             } else if (typeof arg === 'number') {
                 return StellarSdk.nativeToScVal(arg, { type: 'u64' });
             }
@@ -375,9 +401,40 @@ async function depositFunds(amount) {
         showStatus('Depositing funds...', 'info');
         const userAddress = StellarSdk.Address.fromString(keypair.publicKey());
         const amountMicros = parseAmount(amount);
-        await callContract('deposit', userAddress, BigInt(amountMicros));
-        showStatus(`Deposited $${amount} successfully!`, 'success');
-        await loadUserBalance();
+
+        const account = await rpc.getAccount(keypair.publicKey());
+        let tx = new StellarSdk.TransactionBuilder(account, {
+            fee: StellarSdk.BASE_FEE,
+            networkPassphrase: CONFIG.networkPassphrase
+        })
+        .addOperation(contract.call(
+            'deposit',
+            StellarSdk.nativeToScVal(userAddress.toString(), { type: 'address' }),
+            StellarSdk.nativeToScVal(amountMicros, { type: 'i128' })
+        ))
+        .setTimeout(30)
+        .build();
+
+        tx = await rpc.prepareTransaction(tx);
+        tx.sign(keypair);
+        const result = await rpc.sendTransaction(tx);
+
+        if (result.status === 'ERROR') {
+            throw new Error(result.errorResultXdr || 'Transaction failed');
+        }
+
+        let getResponse = await rpc.getTransaction(result.hash);
+        while (getResponse.status === 'NOT_FOUND') {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            getResponse = await rpc.getTransaction(result.hash);
+        }
+
+        if (getResponse.status === 'SUCCESS') {
+            showStatus(`Deposited $${amount} successfully!`, 'success');
+            await loadUserBalance();
+        } else {
+            throw new Error('Transaction failed');
+        }
     } catch (error) {
         console.error('Error depositing funds:', error);
         showStatus('Failed to deposit funds', 'error');
@@ -389,9 +446,40 @@ async function withdrawFunds(amount) {
         showStatus('Withdrawing funds...', 'info');
         const userAddress = StellarSdk.Address.fromString(keypair.publicKey());
         const amountMicros = parseAmount(amount);
-        await callContract('withdraw', userAddress, BigInt(amountMicros));
-        showStatus(`Withdrew $${amount} successfully!`, 'success');
-        await loadUserBalance();
+
+        const account = await rpc.getAccount(keypair.publicKey());
+        let tx = new StellarSdk.TransactionBuilder(account, {
+            fee: StellarSdk.BASE_FEE,
+            networkPassphrase: CONFIG.networkPassphrase
+        })
+        .addOperation(contract.call(
+            'withdraw',
+            StellarSdk.nativeToScVal(userAddress.toString(), { type: 'address' }),
+            StellarSdk.nativeToScVal(amountMicros, { type: 'i128' })
+        ))
+        .setTimeout(30)
+        .build();
+
+        tx = await rpc.prepareTransaction(tx);
+        tx.sign(keypair);
+        const result = await rpc.sendTransaction(tx);
+
+        if (result.status === 'ERROR') {
+            throw new Error(result.errorResultXdr || 'Transaction failed');
+        }
+
+        let getResponse = await rpc.getTransaction(result.hash);
+        while (getResponse.status === 'NOT_FOUND') {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            getResponse = await rpc.getTransaction(result.hash);
+        }
+
+        if (getResponse.status === 'SUCCESS') {
+            showStatus(`Withdrew $${amount} successfully!`, 'success');
+            await loadUserBalance();
+        } else {
+            throw new Error('Transaction failed');
+        }
     } catch (error) {
         console.error('Error withdrawing funds:', error);
         showStatus('Failed to withdraw funds', 'error');
@@ -403,9 +491,40 @@ async function provideLiquidity(amount) {
         showStatus('Providing liquidity...', 'info');
         const providerAddress = StellarSdk.Address.fromString(keypair.publicKey());
         const amountMicros = parseAmount(amount);
-        await callContract('provide_liquidity', providerAddress, BigInt(amountMicros));
-        showStatus(`Provided $${amount} liquidity successfully!`, 'success');
-        await checkContractStatus();
+
+        const account = await rpc.getAccount(keypair.publicKey());
+        let tx = new StellarSdk.TransactionBuilder(account, {
+            fee: StellarSdk.BASE_FEE,
+            networkPassphrase: CONFIG.networkPassphrase
+        })
+        .addOperation(contract.call(
+            'provide_liquidity',
+            StellarSdk.nativeToScVal(providerAddress.toString(), { type: 'address' }),
+            StellarSdk.nativeToScVal(amountMicros, { type: 'i128' })
+        ))
+        .setTimeout(30)
+        .build();
+
+        tx = await rpc.prepareTransaction(tx);
+        tx.sign(keypair);
+        const result = await rpc.sendTransaction(tx);
+
+        if (result.status === 'ERROR') {
+            throw new Error(result.errorResultXdr || 'Transaction failed');
+        }
+
+        let getResponse = await rpc.getTransaction(result.hash);
+        while (getResponse.status === 'NOT_FOUND') {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            getResponse = await rpc.getTransaction(result.hash);
+        }
+
+        if (getResponse.status === 'SUCCESS') {
+            showStatus(`Provided $${amount} liquidity successfully!`, 'success');
+            await checkContractStatus();
+        } else {
+            throw new Error('Transaction failed');
+        }
     } catch (error) {
         console.error('Error providing liquidity:', error);
         showStatus('Failed to provide liquidity', 'error');
@@ -425,19 +544,52 @@ async function createMarket(title, startTime, homeOdds, drawOdds, awayOdds) {
         const drawOddsMicros = parseAmount(drawOdds);
         const awayOddsMicros = parseAmount(awayOdds);
 
-        await callContract(
-            'create_market',
-            adminAddress,
-            sanitizedTitle,
-            BigInt(startTimestamp),
-            BigInt(homeOddsMicros),
-            BigInt(drawOddsMicros),
-            BigInt(awayOddsMicros)
-        );
+        // Build transaction manually with correct types
+        const account = await rpc.getAccount(keypair.publicKey());
 
-        showStatus('Market created successfully!', 'success');
-        await loadMarkets();
-        await loadAdminMarkets();
+        let tx = new StellarSdk.TransactionBuilder(account, {
+            fee: StellarSdk.BASE_FEE,
+            networkPassphrase: CONFIG.networkPassphrase
+        })
+        .addOperation(contract.call(
+            'create_market',
+            StellarSdk.nativeToScVal(adminAddress.toString(), { type: 'address' }),
+            StellarSdk.nativeToScVal(sanitizedTitle, { type: 'symbol' }),
+            StellarSdk.nativeToScVal(startTimestamp, { type: 'i64' }),
+            StellarSdk.nativeToScVal(homeOddsMicros, { type: 'i128' }),
+            StellarSdk.nativeToScVal(drawOddsMicros, { type: 'i128' }),
+            StellarSdk.nativeToScVal(awayOddsMicros, { type: 'i128' })
+        ))
+        .setTimeout(30)
+        .build();
+
+        // Prepare and simulate
+        tx = await rpc.prepareTransaction(tx);
+
+        // Sign transaction
+        tx.sign(keypair);
+
+        // Send transaction
+        const result = await rpc.sendTransaction(tx);
+
+        if (result.status === 'ERROR') {
+            throw new Error(result.errorResultXdr || 'Transaction failed');
+        }
+
+        // Wait for confirmation
+        let getResponse = await rpc.getTransaction(result.hash);
+        while (getResponse.status === 'NOT_FOUND') {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            getResponse = await rpc.getTransaction(result.hash);
+        }
+
+        if (getResponse.status === 'SUCCESS') {
+            showStatus('Market created successfully!', 'success');
+            await loadMarkets();
+            await loadAdminMarkets();
+        } else {
+            throw new Error('Transaction failed');
+        }
     } catch (error) {
         console.error('Error creating market:', error);
         showStatus('Failed to create market', 'error');
@@ -450,15 +602,44 @@ async function placeBet(marketId, outcome, amount) {
         const userAddress = StellarSdk.Address.fromString(keypair.publicKey());
         const amountMicros = parseAmount(amount);
 
-        await callContract('place_bet', userAddress, BigInt(marketId), BigInt(outcome), BigInt(amountMicros));
-        showStatus('Bet placed successfully!', 'success');
+        const account = await rpc.getAccount(keypair.publicKey());
+        let tx = new StellarSdk.TransactionBuilder(account, {
+            fee: StellarSdk.BASE_FEE,
+            networkPassphrase: CONFIG.networkPassphrase
+        })
+        .addOperation(contract.call(
+            'place_bet',
+            StellarSdk.nativeToScVal(userAddress.toString(), { type: 'address' }),
+            StellarSdk.nativeToScVal(marketId, { type: 'u64' }),
+            StellarSdk.nativeToScVal(outcome, { type: 'u32' }),
+            StellarSdk.nativeToScVal(amountMicros, { type: 'i128' })
+        ))
+        .setTimeout(30)
+        .build();
 
-        await loadUserBalance();
-        await loadUserBets();
-        await loadMarkets();
+        tx = await rpc.prepareTransaction(tx);
+        tx.sign(keypair);
+        const result = await rpc.sendTransaction(tx);
 
-        // Close modal
-        closeBettingModal();
+        if (result.status === 'ERROR') {
+            throw new Error(result.errorResultXdr || 'Transaction failed');
+        }
+
+        let getResponse = await rpc.getTransaction(result.hash);
+        while (getResponse.status === 'NOT_FOUND') {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            getResponse = await rpc.getTransaction(result.hash);
+        }
+
+        if (getResponse.status === 'SUCCESS') {
+            showStatus('Bet placed successfully!', 'success');
+            await loadUserBalance();
+            await loadUserBets();
+            await loadMarkets();
+            closeBettingModal();
+        } else {
+            throw new Error('Transaction failed');
+        }
     } catch (error) {
         console.error('Error placing bet:', error);
         showStatus('Failed to place bet', 'error');
@@ -469,10 +650,42 @@ async function settleMarket(marketId, outcome) {
     try {
         showStatus('Settling market...', 'info');
         const adminAddress = StellarSdk.Address.fromString(keypair.publicKey());
-        await callContract('settle_market', adminAddress, BigInt(marketId), BigInt(outcome));
-        showStatus('Market settled successfully!', 'success');
-        await loadMarkets();
-        await loadAdminMarkets();
+
+        const account = await rpc.getAccount(keypair.publicKey());
+        let tx = new StellarSdk.TransactionBuilder(account, {
+            fee: StellarSdk.BASE_FEE,
+            networkPassphrase: CONFIG.networkPassphrase
+        })
+        .addOperation(contract.call(
+            'settle_market',
+            StellarSdk.nativeToScVal(adminAddress.toString(), { type: 'address' }),
+            StellarSdk.nativeToScVal(marketId, { type: 'u64' }),
+            StellarSdk.nativeToScVal(outcome, { type: 'u32' })
+        ))
+        .setTimeout(30)
+        .build();
+
+        tx = await rpc.prepareTransaction(tx);
+        tx.sign(keypair);
+        const result = await rpc.sendTransaction(tx);
+
+        if (result.status === 'ERROR') {
+            throw new Error(result.errorResultXdr || 'Transaction failed');
+        }
+
+        let getResponse = await rpc.getTransaction(result.hash);
+        while (getResponse.status === 'NOT_FOUND') {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            getResponse = await rpc.getTransaction(result.hash);
+        }
+
+        if (getResponse.status === 'SUCCESS') {
+            showStatus('Market settled successfully!', 'success');
+            await loadMarkets();
+            await loadAdminMarkets();
+        } else {
+            throw new Error('Transaction failed');
+        }
     } catch (error) {
         console.error('Error settling market:', error);
         showStatus('Failed to settle market', 'error');
@@ -483,9 +696,40 @@ async function archiveMarket(marketId) {
     try {
         showStatus('Archiving market...', 'info');
         const adminAddress = StellarSdk.Address.fromString(keypair.publicKey());
-        await callContract('archive_market', adminAddress, BigInt(marketId));
-        showStatus('Market archived successfully!', 'success');
-        await loadAdminMarkets();
+
+        const account = await rpc.getAccount(keypair.publicKey());
+        let tx = new StellarSdk.TransactionBuilder(account, {
+            fee: StellarSdk.BASE_FEE,
+            networkPassphrase: CONFIG.networkPassphrase
+        })
+        .addOperation(contract.call(
+            'archive_market',
+            StellarSdk.nativeToScVal(adminAddress.toString(), { type: 'address' }),
+            StellarSdk.nativeToScVal(marketId, { type: 'u64' })
+        ))
+        .setTimeout(30)
+        .build();
+
+        tx = await rpc.prepareTransaction(tx);
+        tx.sign(keypair);
+        const result = await rpc.sendTransaction(tx);
+
+        if (result.status === 'ERROR') {
+            throw new Error(result.errorResultXdr || 'Transaction failed');
+        }
+
+        let getResponse = await rpc.getTransaction(result.hash);
+        while (getResponse.status === 'NOT_FOUND') {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            getResponse = await rpc.getTransaction(result.hash);
+        }
+
+        if (getResponse.status === 'SUCCESS') {
+            showStatus('Market archived successfully!', 'success');
+            await loadAdminMarkets();
+        } else {
+            throw new Error('Transaction failed');
+        }
     } catch (error) {
         console.error('Error archiving market:', error);
         showStatus('Failed to archive market', 'error');
@@ -530,8 +774,10 @@ async function loadMarkets() {
             }
 
             const marketData = StellarSdk.scValToNative(market);
-            if (marketData.status === 'Active') {
-                markets.push({ id: i, ...marketData });
+            // MarketStatus enum is returned as array ['Active'], ['Settled'], or ['Archived']
+            const status = Array.isArray(marketData.status) ? marketData.status[0] : marketData.status;
+            if (status === 'Active') {
+                markets.push({ id: i, ...marketData, status });
             }
         }
 
@@ -552,15 +798,15 @@ async function loadMarkets() {
                     <div class="outcomes">
                         <div class="outcome" data-outcome="0">
                             <span class="outcome-name">Home Win</span>
-                            <span class="outcome-odds">$${formatAmount(market.home_odds)}</span>
+                            <span class="outcome-odds">$${formatAmount(market.odds_home)}</span>
                         </div>
                         <div class="outcome" data-outcome="1">
                             <span class="outcome-name">Draw</span>
-                            <span class="outcome-odds">$${formatAmount(market.draw_odds)}</span>
+                            <span class="outcome-odds">$${formatAmount(market.odds_draw)}</span>
                         </div>
                         <div class="outcome" data-outcome="2">
                             <span class="outcome-name">Away Win</span>
-                            <span class="outcome-odds">$${formatAmount(market.away_odds)}</span>
+                            <span class="outcome-odds">$${formatAmount(market.odds_away)}</span>
                         </div>
                     </div>
                 </div>
@@ -616,7 +862,9 @@ async function loadAdminMarkets() {
             }
 
             const marketData = StellarSdk.scValToNative(market);
-            markets.push({ id: i, ...marketData });
+            // MarketStatus enum is returned as array ['Active'], ['Settled'], or ['Archived']
+            const status = Array.isArray(marketData.status) ? marketData.status[0] : marketData.status;
+            markets.push({ id: i, ...marketData, status });
         }
 
         if (markets.length === 0) {
@@ -655,9 +903,73 @@ async function loadUserBets() {
         const container = document.getElementById('my-bets-container');
         if (!container) return;
 
-        // This would require implementing a way to track user bets
-        // For now, show placeholder
-        container.innerHTML = '<div class="no-markets"><p>Bet history will appear here after placing bets</p></div>';
+        const userAddress = keypair.publicKey();
+        const userBets = [];
+        const marketCache = {};
+
+        // Iterate through markets to find user's bets
+        for (let marketId = 1; marketId <= 100; marketId++) {
+            try {
+                const market = await readContract('get_market', BigInt(marketId));
+                if (!market) break;
+
+                const marketData = StellarSdk.scValToNative(market);
+                const status = Array.isArray(marketData.status) ? marketData.status[0] : marketData.status;
+                marketCache[marketId] = { ...marketData, status, id: marketId };
+
+                // Get all bets for this market
+                const betsResult = await readContract('get_market_bets', BigInt(marketId));
+                if (!betsResult) continue;
+
+                const bets = StellarSdk.scValToNative(betsResult);
+
+                // Filter bets for current user
+                for (const bet of bets) {
+                    const betAddress = typeof bet.bettor === 'string' ? bet.bettor : bet.bettor.toString();
+                    if (betAddress === userAddress) {
+                        userBets.push({
+                            ...bet,
+                            market: marketCache[marketId]
+                        });
+                    }
+                }
+            } catch (error) {
+                // Market doesn't exist or error reading, continue
+                continue;
+            }
+        }
+
+        if (userBets.length === 0) {
+            container.innerHTML = '<div class="no-markets"><div class="no-markets-content"><div class="no-markets-icon">🎫</div><h3>No Bets Yet</h3><p>Your bet history will appear here after placing bets</p></div></div>';
+        } else {
+            const outcomeNames = ['Home Win', 'Draw', 'Away Win'];
+            container.innerHTML = userBets.map(bet => `
+                <div class="bet-card">
+                    <div class="bet-header">
+                        <h4 class="bet-title">${bet.market.title}</h4>
+                        <span class="market-status ${bet.market.status.toLowerCase()}">${bet.market.status}</span>
+                    </div>
+                    <div class="bet-details-grid">
+                        <div class="bet-detail">
+                            <span class="bet-label">Outcome</span>
+                            <span class="bet-value">${outcomeNames[bet.outcome]}</span>
+                        </div>
+                        <div class="bet-detail">
+                            <span class="bet-label">Bet Amount</span>
+                            <span class="bet-value">$${formatAmount(bet.amount)}</span>
+                        </div>
+                        <div class="bet-detail">
+                            <span class="bet-label">Odds</span>
+                            <span class="bet-value">$${formatAmount(bet.price)}</span>
+                        </div>
+                        <div class="bet-detail">
+                            <span class="bet-label">Potential Payout</span>
+                            <span class="bet-value profit">$${formatAmount(Number(bet.amount) * 1000000 / Number(bet.price))}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
     } catch (error) {
         console.error('Error loading user bets:', error);
     }
@@ -675,7 +987,7 @@ function openBettingModal(market, outcomeId) {
     const selectedOdds = document.getElementById('selected-odds');
 
     const outcomes = ['Home Win', 'Draw', 'Away Win'];
-    const odds = [market.home_odds, market.draw_odds, market.away_odds];
+    const odds = [market.odds_home, market.odds_draw, market.odds_away];
 
     currentBet = {
         marketId: market.id,
@@ -708,7 +1020,9 @@ function updatePayout() {
     const potentialProfit = document.getElementById('potential-profit');
 
     if (currentBet && betAmount > 0) {
-        const payout = betAmount * CONFIG.decimals / currentBet.odds;
+        // Convert odds BigInt to Number
+        const oddsNum = typeof currentBet.odds === 'bigint' ? Number(currentBet.odds) : currentBet.odds;
+        const payout = betAmount * CONFIG.decimals / oddsNum;
         const profit = payout - betAmount;
 
         potentialPayout.textContent = `$${payout.toFixed(2)}`;
@@ -965,4 +1279,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load initial data
     checkContractStatus();
     loadMarkets();
+
+    // Auto-connect user wallet if stored (only on main page, not admin)
+    if (!window.isAdminMode) {
+        const storedWallet = getUserWallet();
+        if (storedWallet) {
+            connectWallet();
+        }
+    }
 });

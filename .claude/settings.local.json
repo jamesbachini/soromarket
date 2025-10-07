@@ -7,7 +7,8 @@
       "Bash(cargo update:*)",
       "Bash(cargo test:*)",
       "Bash(timeout 300 cargo test)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(node:*)"
     ],
     "deny": []
   }
