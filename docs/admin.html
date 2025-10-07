@@ -39,7 +39,7 @@
                     <div class="status-grid">
                         <div class="status-item">
                             <div class="status-label">Contract ID</div>
-                            <div class="status-value contract-id">CACHJPERNE4R4R6UUSSE3RDMNGXWIFALBDIX3CSYIIF7L2K56622WZPO</div>
+                            <div id="contract-id-display" class="status-value contract-id"></div>
                         </div>
                         <div class="status-item">
                             <div class="status-label">Network</div>
@@ -121,8 +121,8 @@
                         </div>
                         <div class="input-group">
                             <label for="initial-liquidity">Initial Market Liquidity (USD)</label>
-                            <input type="number" id="initial-liquidity" placeholder="10000000" min="0" step="1000000">
-                            <small>Amount in USD (e.g., 10000000 = $10M) to seed this market's CPMM reserves</small>
+                            <input type="number" id="initial-liquidity" placeholder="1000" min="0" step="1000">
+                            <small>Amount in USD (e.g., 1000 = $1k) to seed this market's CPMM reserves</small>
                         </div>
                         <button id="create-market" class="btn btn-primary btn-large">Create Market</button>
                     </div>
@@ -142,21 +142,6 @@
                 </div>
             </section>
 
-            <!-- Archive Market -->
-            <section class="admin-section">
-                <div class="card">
-                    <h2 class="section-title">Archive Market</h2>
-                    <div class="form-grid">
-                        <div class="form-section">
-                            <div class="input-group">
-                                <label for="archive-market-id">Market ID</label>
-                                <input type="number" id="archive-market-id" placeholder="1" min="0">
-                            </div>
-                            <button id="archive-market" class="btn btn-danger">Archive Market</button>
-                        </div>
-                    </div>
-                </div>
-            </section>
         </div>
     </main>
 

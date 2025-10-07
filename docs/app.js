@@ -1,7 +1,7 @@
 // SoroMarket Frontend - Stellar Soroban Integration
 
 const CONFIG = {
-    contractId: 'CDM3N32ES4NDRDXCE7IHH64V6A6TE6ZUYR6MMU2OXWEXXOONCV7XNRWE',
+    contractId: 'CBRAHN2UYU7MX543UJMJOHYNJ6ZFZZNWLIEZJOX7M27AA6Y5QWSMY352',
     rpcUrl: 'https://soroban-testnet.stellar.org',
     networkPassphrase: StellarSdk.Networks.TESTNET,
     decimals: 1000000 // 6 decimal places
@@ -1330,6 +1330,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const createMarketBtn = document.getElementById('create-market');
     const settleMarketBtn = document.getElementById('settle-market');
     const archiveMarketBtn = document.getElementById('archive-market');
+    const contractIdDisplay = document.getElementById('contract-id-display');
+
+    if (contractIdDisplay) contractIdDisplay.innerText = CONFIG.contractId;
 
     if (initializeBtn) {
         initializeBtn.addEventListener('click', initializeContract);
