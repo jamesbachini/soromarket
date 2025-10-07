@@ -6,6 +6,7 @@ const DECIMALS: i128 = 1_000_000; // USDC-like 6 decimals
 const MIN_PRICE: i128 = 10_000; // $0.01
 const TOTAL_PRICE_SUM: i128 = 990_000; // $0.99 (includes spread @ 1%)
 const MAX_BETTORS_PER_MARKET: u32 = 1000;
+const CASHOUT_FEE_PERCENT: i128 = 5; // 5% fee on early cashout
 
 fn key_admin() -> Symbol { symbol_short!("ADMIN") }
 fn key_market_counter() -> Symbol { symbol_short!("MKT_CNT") }
@@ -23,6 +24,9 @@ pub struct Market {
     pub odds_away: i128,
     pub status: MarketStatus,
     pub bettor_count: u32,
+    pub reserve_home: i128,
+    pub reserve_draw: i128,
+    pub reserve_away: i128,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -68,12 +72,21 @@ impl PredictionMarketContract {
         odds_home: i128,
         odds_draw: i128,
         odds_away: i128,
+        initial_liquidity: i128,
     ) -> u64 {
         Self::require_admin(&env, &admin);
         Self::validate_odds(odds_home, odds_draw, odds_away);
+        if initial_liquidity < 0 { panic!("initial liquidity must be non-negative"); }
+
         let mut counter: u64 = env.storage().persistent().get(&key_market_counter()).unwrap_or(0u64);
         counter += 1;
         env.storage().persistent().set(&key_market_counter(), &counter);
+
+        // Initialize reserves proportional to initial odds using provided liquidity
+        let reserve_home = Self::calculate_reserve_from_price(initial_liquidity, odds_home);
+        let reserve_draw = Self::calculate_reserve_from_price(initial_liquidity, odds_draw);
+        let reserve_away = Self::calculate_reserve_from_price(initial_liquidity, odds_away);
+
         let market = Market {
             id: counter,
             title: title.clone(),
@@ -83,6 +96,9 @@ impl PredictionMarketContract {
             odds_away,
             status: MarketStatus::Active,
             bettor_count: 0u32,
+            reserve_home,
+            reserve_draw,
+            reserve_away,
         };
         let market_key = Self::market_key(counter);
         env.storage().persistent().set(&market_key, &market);
@@ -114,6 +130,9 @@ impl PredictionMarketContract {
         Self::require_admin(&env, &admin);
         let market_key = Self::market_key(market_id);
         let mut market: Market = env.storage().persistent().get(&market_key).expect("market not found");
+        market.reserve_home = 0;
+        market.reserve_draw = 0;
+        market.reserve_away = 0;
         market.status = MarketStatus::Archived;
         env.storage().persistent().set(&market_key, &market);
     }
@@ -126,7 +145,7 @@ impl PredictionMarketContract {
         if market.status != MarketStatus::Active { panic!("market not active"); }
         let mkbets_key = Self::market_bets_key(market_id);
         let bet_ids: Vec<u64> = env.storage().persistent().get(&mkbets_key).unwrap_or(Vec::new(&env));
-        let mut total_payouts: i128 = 0i128;
+        let mut total_winning_shares: i128 = 0i128;
         let bet_ids_len = bet_ids.len();
         let mut i = 0u32;
         while i < bet_ids_len {
@@ -134,13 +153,17 @@ impl PredictionMarketContract {
             let bet_key = Self::bet_key(bet_id);
             let bet: Bet = env.storage().persistent().get(&bet_key).expect("bet not found");
             if bet.outcome == outcome {
-                if bet.price == 0 { panic!("bet price zero"); }
-                // payout = amount * DECIMALS / price
-                let payout = bet.amount.checked_mul(DECIMALS).expect("mul overflow").checked_div(bet.price).expect("div error");
-                total_payouts = total_payouts.checked_add(payout).expect("overflow total payouts");
+                total_winning_shares = total_winning_shares.checked_add(bet.amount).expect("overflow winning shares");
             }
             i += 1;
         }
+        let total_payouts = match outcome {
+            0 => market.reserve_home,
+            1 => market.reserve_draw,
+            2 => market.reserve_away,
+            _ => panic!("invalid outcome"),
+        };
+
         let mut total_liq: i128 = env.storage().persistent().get(&key_total_liquidity()).unwrap_or(0i128);
         if total_liq < total_payouts { panic!("insufficient liquidity for payouts"); }
         i = 0;
@@ -150,13 +173,21 @@ impl PredictionMarketContract {
             let bet: Bet = env.storage().persistent().get(&bet_key).expect("bet not found");
             env.storage().persistent().remove(&bet_key);
             if bet.outcome == outcome {
-                let payout = bet.amount.checked_mul(DECIMALS).unwrap().checked_div(bet.price).unwrap();
+                // payout = (user_shares / total_winning_shares) * total_payouts
+                let payout = if total_winning_shares > 0 {
+                    bet.amount.checked_mul(total_payouts).expect("mul overflow").checked_div(total_winning_shares).expect("div error")
+                } else {
+                    bet.amount
+                };
                 Self::credit_user_balance(&env, &bet.bettor, payout);
                 total_liq = total_liq.checked_sub(payout).expect("underflow liq");
             }
             i += 1;
         }
         env.storage().persistent().set(&key_total_liquidity(), &total_liq);
+        market.reserve_home = 0;
+        market.reserve_draw = 0;
+        market.reserve_away = 0;
         market.status = MarketStatus::Settled;
         env.storage().persistent().set(&market_key, &market);
         let empty_vec: Vec<u64> = Vec::new(&env);
@@ -165,7 +196,6 @@ impl PredictionMarketContract {
 
     pub fn provide_liquidity(env: Env, provider: Address, amount: i128) {
         if amount <= 0 { panic!("amount must be positive"); }
-        // For now: we simulate token transfer externally. Update internal LP balance and total liquidity.
         let mut lp: i128 = env.storage().persistent().get(&Self::lp_key(&provider)).unwrap_or(0i128);
         lp = lp.checked_add(amount).expect("overflow lp balance");
         env.storage().persistent().set(&Self::lp_key(&provider), &lp);
@@ -195,7 +225,6 @@ impl PredictionMarketContract {
 
     pub fn deposit(env: Env, user: Address, amount: i128) {
         if amount <= 0 { panic!("deposit positive"); }
-        // Simulate deposit: increase user internal balance and total liquidity
         Self::credit_user_balance(&env, &user, amount);
         let mut total_liq: i128 = env.storage().persistent().get(&key_total_liquidity()).unwrap_or(0i128);
         total_liq = total_liq.checked_add(amount).expect("overflow total liq");
@@ -235,13 +264,22 @@ impl PredictionMarketContract {
         let mut market: Market = env.storage().persistent().get(&market_key).expect("market not found");
         if market.status != MarketStatus::Active { panic!("market not active"); }
         if market.bettor_count >= MAX_BETTORS_PER_MARKET { panic!("market bettor cap reached"); }
-        let price = match outcome {
-            0 => market.odds_home,
-            1 => market.odds_draw,
-            2 => market.odds_away,
+        let reserve = match outcome {
+            0 => market.reserve_home,
+            1 => market.reserve_draw,
+            2 => market.reserve_away,
             _ => panic!("invalid outcome"),
         };
-        if price < MIN_PRICE { panic!("price below minimum"); }
+        let total_reserve = market.reserve_home.checked_add(market.reserve_draw).expect("overflow").checked_add(market.reserve_away).expect("overflow");
+        let price = Self::calculate_price_from_reserve(reserve, total_reserve);
+        let shares = Self::calculate_buy_amount_out(reserve, amount);
+        match outcome {
+            0 => market.reserve_home = market.reserve_home.checked_add(amount).expect("overflow reserve"),
+            1 => market.reserve_draw = market.reserve_draw.checked_add(amount).expect("overflow reserve"),
+            2 => market.reserve_away = market.reserve_away.checked_add(amount).expect("overflow reserve"),
+            _ => panic!("invalid outcome"),
+        };
+
         user_bal = user_bal.checked_sub(amount).expect("underflow user bal");
         env.storage().persistent().set(&Self::user_key(&user), &user_bal);
         let mut total_liq: i128 = env.storage().persistent().get(&key_total_liquidity()).unwrap_or(0i128);
@@ -255,7 +293,7 @@ impl PredictionMarketContract {
             bettor: user.clone(),
             market_id,
             outcome,
-            amount,
+            amount: shares, // store shares, not USD amount
             price,
         };
         let bet_key = Self::bet_key(bet_counter);
@@ -303,6 +341,63 @@ impl PredictionMarketContract {
         env.storage().persistent().get(&key_admin()).expect("admin not set")
     }
 
+    pub fn get_current_odds(env: Env, market_id: u64) -> (i128, i128, i128) {
+        let market_key = Self::market_key(market_id);
+        let market: Market = env.storage().persistent().get(&market_key).expect("market not found");
+        let total_reserve = market.reserve_home.checked_add(market.reserve_draw).expect("overflow").checked_add(market.reserve_away).expect("overflow");
+        if total_reserve == 0 {
+            return (market.odds_home, market.odds_draw, market.odds_away);
+        }
+        let odds_home = Self::calculate_price_from_reserve(market.reserve_home, total_reserve);
+        let odds_draw = Self::calculate_price_from_reserve(market.reserve_draw, total_reserve);
+        let odds_away = Self::calculate_price_from_reserve(market.reserve_away, total_reserve);
+        (odds_home, odds_draw, odds_away)
+    }
+
+    pub fn cash_out(env: Env, user: Address, bet_id: u64) {
+        let bet_key = Self::bet_key(bet_id);
+        let bet: Bet = env.storage().persistent().get(&bet_key).expect("bet not found");
+        if bet.bettor != user { panic!("unauthorized: not bet owner"); }
+        let market_key = Self::market_key(bet.market_id);
+        let mut market: Market = env.storage().persistent().get(&market_key).expect("market not found");
+        if market.status != MarketStatus::Active { panic!("market not active"); }
+        let reserve = match bet.outcome {
+            0 => market.reserve_home,
+            1 => market.reserve_draw,
+            2 => market.reserve_away,
+            _ => panic!("invalid outcome"),
+        };
+        let shares = bet.amount; // bet.amount stores shares
+        let payout_before_fee = Self::calculate_sell_amount_out(reserve, shares);
+        let fee = payout_before_fee.checked_mul(CASHOUT_FEE_PERCENT).expect("mul overflow").checked_div(100).expect("div error");
+        let payout_after_fee = payout_before_fee.checked_sub(fee).expect("underflow payout");
+        match bet.outcome {
+            0 => market.reserve_home = market.reserve_home.checked_sub(shares).expect("underflow reserve"),
+            1 => market.reserve_draw = market.reserve_draw.checked_sub(shares).expect("underflow reserve"),
+            2 => market.reserve_away = market.reserve_away.checked_sub(shares).expect("underflow reserve"),
+            _ => panic!("invalid outcome"),
+        };
+        Self::credit_user_balance(&env, &user, payout_after_fee);
+        let mut total_liq: i128 = env.storage().persistent().get(&key_total_liquidity()).unwrap_or(0i128);
+        total_liq = total_liq.checked_sub(payout_after_fee).expect("underflow total liq");
+        env.storage().persistent().set(&key_total_liquidity(), &total_liq);
+        env.storage().persistent().remove(&bet_key);
+        let mkbets_key = Self::market_bets_key(bet.market_id);
+        let bet_ids: Vec<u64> = env.storage().persistent().get(&mkbets_key).unwrap_or(Vec::new(&env));
+        let mut new_bet_ids: Vec<u64> = Vec::new(&env);
+        let mut i = 0u32;
+        while i < bet_ids.len() {
+            let id = bet_ids.get(i).unwrap();
+            if id != bet_id {
+                new_bet_ids.push_back(id);
+            }
+            i += 1;
+        }
+        env.storage().persistent().set(&mkbets_key, &new_bet_ids);
+        market.bettor_count = market.bettor_count.checked_sub(1).unwrap_or(0);
+        env.storage().persistent().set(&market_key, &market);
+    }
+
     fn require_admin(env: &Env, who: &Address) {
         let admin: Address = env.storage().persistent().get(&key_admin()).expect("admin not set");
         if admin != *who { panic!("unauthorized: admin only"); }
@@ -340,6 +435,32 @@ impl PredictionMarketContract {
         let mut bal: i128 = env.storage().persistent().get(&Self::user_key(user)).unwrap_or(0i128);
         bal = bal.checked_add(amount).expect("overflow credit user bal");
         env.storage().persistent().set(&Self::user_key(user), &bal);
+    }
+
+    fn calculate_reserve_from_price(total_reserve: i128, price: i128) -> i128 {
+        // reserve = total_reserve * price / DECIMALS
+        total_reserve.checked_mul(price).expect("mul overflow").checked_div(DECIMALS).expect("div error")
+    }
+
+    fn calculate_price_from_reserve(reserve: i128, total_reserve: i128) -> i128 {
+        // price = reserve * DECIMALS / total_reserve
+        if total_reserve == 0 { return 0; }
+        reserve.checked_mul(DECIMALS).expect("mul overflow").checked_div(total_reserve).expect("div error")
+    }
+
+    fn calculate_buy_amount_out(reserve_in: i128, delta_in: i128) -> i128 {
+        // CPMM: when user bets, they add delta_in to reserve_in
+        // amount_out (shares purchased) = reserve_in * delta_in / (reserve_in + delta_in)
+        if reserve_in == 0 { return delta_in; } // edge case: no reserve yet
+        let new_reserve = reserve_in.checked_add(delta_in).expect("overflow reserve");
+        reserve_in.checked_mul(delta_in).expect("mul overflow").checked_div(new_reserve).expect("div error")
+    }
+
+    fn calculate_sell_amount_out(reserve_out: i128, shares_in: i128) -> i128 {
+        // CPMM: when user sells shares, they remove shares_in from reserve_out
+        // amount_out = shares_in * reserve_out / (reserve_out + shares_in)
+        if reserve_out == 0 { return 0; }
+        shares_in.checked_mul(reserve_out).expect("mul overflow").checked_div(reserve_out.checked_add(shares_in).expect("overflow")).expect("div error")
     }
 }
 

@@ -8,7 +8,8 @@
       "Bash(cargo test:*)",
       "Bash(timeout 300 cargo test)",
       "Bash(mkdir:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(cargo build:*)"
     ],
     "deny": []
   }

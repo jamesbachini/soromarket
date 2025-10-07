@@ -142,7 +142,7 @@
                 },
                 "durability": "persistent",
                 "val": {
-                  "i128": "21500000"
+                  "i128": "19000000"
                 }
               }
             },
@@ -275,6 +275,30 @@
                     },
                     {
                       "key": {
+                        "symbol": "reserve_away"
+                      },
+                      "val": {
+                        "i128": "0"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "reserve_draw"
+                      },
+                      "val": {
+                        "i128": "0"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "reserve_home"
+                      },
+                      "val": {
+                        "i128": "0"
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "start_time"
                       },
                       "val": {
@@ -391,7 +415,7 @@
                 },
                 "durability": "persistent",
                 "val": {
-                  "i128": "2500000"
+                  "i128": "5000000"
                 }
               }
             },

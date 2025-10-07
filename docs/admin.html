@@ -119,6 +119,11 @@
                                 <span id="odds-validation" class="validation-message"></span>
                             </div>
                         </div>
+                        <div class="input-group">
+                            <label for="initial-liquidity">Initial Market Liquidity (USD)</label>
+                            <input type="number" id="initial-liquidity" placeholder="10000000" min="0" step="1000000">
+                            <small>Amount in USD (e.g., 10000000 = $10M) to seed this market's CPMM reserves</small>
+                        </div>
                         <button id="create-market" class="btn btn-primary btn-large">Create Market</button>
                     </div>
                 </div>

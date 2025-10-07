@@ -1,7 +1,7 @@
 // SoroMarket Frontend - Stellar Soroban Integration
 
 const CONFIG = {
-    contractId: 'CACHJPERNE4R4R6UUSSE3RDMNGXWIFALBDIX3CSYIIF7L2K56622WZPO',
+    contractId: 'CDM3N32ES4NDRDXCE7IHH64V6A6TE6ZUYR6MMU2OXWEXXOONCV7XNRWE',
     rpcUrl: 'https://soroban-testnet.stellar.org',
     networkPassphrase: StellarSdk.Networks.TESTNET,
     decimals: 1000000 // 6 decimal places
@@ -12,6 +12,7 @@ let keypair = null;
 let rpc = null;
 let contract = null;
 let isInitialized = false;
+let oddsUpdateInterval = null;
 
 // Initialize RPC and Contract
 function initializeStellar() {
@@ -531,7 +532,7 @@ async function provideLiquidity(amount) {
     }
 }
 
-async function createMarket(title, startTime, homeOdds, drawOdds, awayOdds) {
+async function createMarket(title, startTime, homeOdds, drawOdds, awayOdds, initialLiquidity) {
     try {
         showStatus('Creating market...', 'info');
 
@@ -543,6 +544,7 @@ async function createMarket(title, startTime, homeOdds, drawOdds, awayOdds) {
         const homeOddsMicros = parseAmount(homeOdds);
         const drawOddsMicros = parseAmount(drawOdds);
         const awayOddsMicros = parseAmount(awayOdds);
+        const initialLiquidityMicros = parseAmount(initialLiquidity);
 
         // Build transaction manually with correct types
         const account = await rpc.getAccount(keypair.publicKey());
@@ -558,7 +560,8 @@ async function createMarket(title, startTime, homeOdds, drawOdds, awayOdds) {
             StellarSdk.nativeToScVal(startTimestamp, { type: 'i64' }),
             StellarSdk.nativeToScVal(homeOddsMicros, { type: 'i128' }),
             StellarSdk.nativeToScVal(drawOddsMicros, { type: 'i128' }),
-            StellarSdk.nativeToScVal(awayOddsMicros, { type: 'i128' })
+            StellarSdk.nativeToScVal(awayOddsMicros, { type: 'i128' }),
+            StellarSdk.nativeToScVal(initialLiquidityMicros, { type: 'i128' })
         ))
         .setTimeout(30)
         .build();
@@ -777,6 +780,19 @@ async function loadMarkets() {
             // MarketStatus enum is returned as array ['Active'], ['Settled'], or ['Archived']
             const status = Array.isArray(marketData.status) ? marketData.status[0] : marketData.status;
             if (status === 'Active') {
+                // Get current odds from CPMM
+                const currentOdds = await readContract('get_current_odds', BigInt(i));
+                if (currentOdds) {
+                    const oddsNative = StellarSdk.scValToNative(currentOdds);
+                    marketData.current_odds_home = oddsNative[0];
+                    marketData.current_odds_draw = oddsNative[1];
+                    marketData.current_odds_away = oddsNative[2];
+                } else {
+                    // Fallback to static odds
+                    marketData.current_odds_home = marketData.odds_home;
+                    marketData.current_odds_draw = marketData.odds_draw;
+                    marketData.current_odds_away = marketData.odds_away;
+                }
                 markets.push({ id: i, ...marketData, status });
             }
         }
@@ -798,15 +814,15 @@ async function loadMarkets() {
                     <div class="outcomes">
                         <div class="outcome" data-outcome="0">
                             <span class="outcome-name">Home Win</span>
-                            <span class="outcome-odds">$${formatAmount(market.odds_home)}</span>
+                            <span class="outcome-odds" data-market-id="${market.id}" data-outcome="0">$${formatAmount(market.current_odds_home)}</span>
                         </div>
                         <div class="outcome" data-outcome="1">
                             <span class="outcome-name">Draw</span>
-                            <span class="outcome-odds">$${formatAmount(market.odds_draw)}</span>
+                            <span class="outcome-odds" data-market-id="${market.id}" data-outcome="1">$${formatAmount(market.current_odds_draw)}</span>
                         </div>
                         <div class="outcome" data-outcome="2">
                             <span class="outcome-name">Away Win</span>
-                            <span class="outcome-odds">$${formatAmount(market.odds_away)}</span>
+                            <span class="outcome-odds" data-market-id="${market.id}" data-outcome="2">$${formatAmount(market.current_odds_away)}</span>
                         </div>
                     </div>
                 </div>
@@ -835,8 +851,69 @@ async function loadMarkets() {
         if (activeMarketsEl) {
             activeMarketsEl.textContent = markets.length;
         }
+
+        // Start real-time odds updates
+        startOddsUpdates();
     } catch (error) {
         console.error('Error loading markets:', error);
+    }
+}
+
+async function updateLiveOdds() {
+    try {
+        const oddsElements = document.querySelectorAll('.outcome-odds[data-market-id]');
+
+        // Group by market ID to avoid duplicate calls
+        const marketIds = new Set();
+        oddsElements.forEach(el => marketIds.add(el.dataset.marketId));
+
+        for (const marketId of marketIds) {
+            const currentOdds = await readContract('get_current_odds', BigInt(marketId));
+            if (!currentOdds) continue;
+
+            const oddsNative = StellarSdk.scValToNative(currentOdds);
+            const [oddsHome, oddsDraw, oddsAway] = oddsNative;
+
+            // Update each outcome's odds
+            oddsElements.forEach(el => {
+                if (el.dataset.marketId !== marketId) return;
+
+                const outcome = parseInt(el.dataset.outcome);
+                let newOdds;
+                if (outcome === 0) newOdds = oddsHome;
+                else if (outcome === 1) newOdds = oddsDraw;
+                else if (outcome === 2) newOdds = oddsAway;
+
+                const oldOdds = parseFloat(el.textContent.replace('$', ''));
+                const newOddsFormatted = formatAmount(newOdds);
+
+                if (Math.abs(oldOdds - parseFloat(newOddsFormatted)) > 0.001) {
+                    // Odds changed - update with animation
+                    el.textContent = `$${newOddsFormatted}`;
+                    el.classList.add('odds-changed');
+                    setTimeout(() => el.classList.remove('odds-changed'), 500);
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error updating live odds:', error);
+    }
+}
+
+function startOddsUpdates() {
+    // Clear existing interval if any
+    if (oddsUpdateInterval) {
+        clearInterval(oddsUpdateInterval);
+    }
+
+    // Update odds every 5 seconds
+    oddsUpdateInterval = setInterval(updateLiveOdds, 5000);
+}
+
+function stopOddsUpdates() {
+    if (oddsUpdateInterval) {
+        clearInterval(oddsUpdateInterval);
+        oddsUpdateInterval = null;
     }
 }
 
@@ -944,7 +1021,7 @@ async function loadUserBets() {
         } else {
             const outcomeNames = ['Home Win', 'Draw', 'Away Win'];
             container.innerHTML = userBets.map(bet => `
-                <div class="bet-card">
+                <div class="bet-card" data-bet-id="${bet.id}">
                     <div class="bet-header">
                         <h4 class="bet-title">${bet.market.title}</h4>
                         <span class="market-status ${bet.market.status.toLowerCase()}">${bet.market.status}</span>
@@ -955,23 +1032,95 @@ async function loadUserBets() {
                             <span class="bet-value">${outcomeNames[bet.outcome]}</span>
                         </div>
                         <div class="bet-detail">
-                            <span class="bet-label">Bet Amount</span>
+                            <span class="bet-label">Shares</span>
                             <span class="bet-value">$${formatAmount(bet.amount)}</span>
                         </div>
                         <div class="bet-detail">
-                            <span class="bet-label">Odds</span>
+                            <span class="bet-label">Entry Odds</span>
                             <span class="bet-value">$${formatAmount(bet.price)}</span>
                         </div>
                         <div class="bet-detail">
-                            <span class="bet-label">Potential Payout</span>
-                            <span class="bet-value profit">$${formatAmount(Number(bet.amount) * 1000000 / Number(bet.price))}</span>
+                            <span class="bet-label">Current Value</span>
+                            <span class="bet-value profit" data-bet-id="${bet.id}-value">Calculating...</span>
                         </div>
                     </div>
+                    ${bet.market.status === 'Active' ? `
+                        <button class="btn btn-warning cash-out-btn" onclick="cashOutBet(${bet.id})" style="margin-top: 10px; width: 100%;">
+                            Cash Out (5% fee)
+                        </button>
+                    ` : ''}
                 </div>
             `).join('');
+
+            // Calculate and update current values
+            userBets.forEach(async bet => {
+                if (bet.market.status === 'Active') {
+                    await updateBetCurrentValue(bet);
+                }
+            });
         }
     } catch (error) {
         console.error('Error loading user bets:', error);
+    }
+}
+
+async function updateBetCurrentValue(bet) {
+    try {
+        // Get current odds for the market
+        const currentOdds = await readContract('get_current_odds', BigInt(bet.market_id));
+        if (!currentOdds) return;
+
+        const oddsNative = StellarSdk.scValToNative(currentOdds);
+        const currentPrice = oddsNative[bet.outcome];
+
+        // Calculate current value: shares * current_price / DECIMALS
+        const currentValue = Number(bet.amount) * Number(currentPrice) / CONFIG.decimals;
+
+        // Apply 5% cashout fee
+        const valueAfterFee = currentValue * 0.95;
+
+        // Update UI
+        const valueElement = document.querySelector(`[data-bet-id="${bet.id}-value"]`);
+        if (valueElement) {
+            valueElement.textContent = `$${valueAfterFee.toFixed(2)}`;
+
+            // Add profit/loss indicator
+            const entryValue = Number(bet.amount) * Number(bet.price) / CONFIG.decimals;
+            if (valueAfterFee > entryValue) {
+                valueElement.classList.add('profit');
+                valueElement.classList.remove('loss');
+            } else if (valueAfterFee < entryValue) {
+                valueElement.classList.add('loss');
+                valueElement.classList.remove('profit');
+            }
+        }
+    } catch (error) {
+        console.error('Error updating bet value:', error);
+    }
+}
+
+async function cashOutBet(betId) {
+    if (!keypair) {
+        showStatus('Please connect your wallet first', 'warning');
+        return;
+    }
+
+    try {
+        showStatus('Processing cash out...', 'info');
+
+        const userAddress = StellarSdk.Address.fromString(keypair.publicKey());
+        await callContract('cash_out', userAddress, BigInt(betId));
+
+        showStatus('Successfully cashed out!', 'success');
+
+        // Reload user data
+        await Promise.all([
+            loadUserBalance(),
+            loadUserBets()
+        ]);
+    } catch (error) {
+        console.error('Error cashing out:', error);
+        showStatus('Failed to cash out bet', 'error');
     }
 }
 
@@ -1203,9 +1352,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const homeOdds = document.getElementById('home-odds').value;
             const drawOdds = document.getElementById('draw-odds').value;
             const awayOdds = document.getElementById('away-odds').value;
+            const initialLiquidity = document.getElementById('initial-liquidity').value || '10';
 
             if (title && startTime && validateOdds()) {
-                createMarket(title, startTime, homeOdds, drawOdds, awayOdds);
+                createMarket(title, startTime, homeOdds, drawOdds, awayOdds, initialLiquidity);
 
                 // Reset form
                 document.getElementById('market-title').value = '';
@@ -1213,6 +1363,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('home-odds').value = '';
                 document.getElementById('draw-odds').value = '';
                 document.getElementById('away-odds').value = '';
+                document.getElementById('initial-liquidity').value = '';
                 validateOdds();
             } else {
                 showStatus('Please fill all fields and ensure odds sum to $0.99', 'error');
