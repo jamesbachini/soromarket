@@ -503,6 +503,11 @@ body {
     line-height: 1.7;
 }
 
+.hero-subtitle a {
+    text-decoration: none;
+    color: var(--primary-color);
+}
+
 .hero-stats {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -1217,6 +1222,11 @@ input::placeholder {
 
 .footer-brand .logo {
     margin-bottom: var(--space-sm);
+}
+
+.footer-brand .logo-text, .footer-brand .logo-tagline {
+        color: var(--primary-color);
+        -webkit-text-fill-color: var(--primary-color);
 }
 
 .footer-description {
