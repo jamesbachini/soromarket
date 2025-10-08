@@ -1292,7 +1292,7 @@ async function cashOutStake(stakeId) {
 // UI Functions
 let currentStake = null;
 
-function openStakingModal(market, outcomeId) {
+async function openStakingModal(market, outcomeId) {
     const modal = document.getElementById('staking-modal');
     const modalTitle = document.getElementById('modal-title');
     const modalMatchTitle = document.getElementById('modal-match-title');
@@ -1303,10 +1303,28 @@ function openStakingModal(market, outcomeId) {
     const outcomes = ['Home Win', 'Draw', 'Away Win'];
     const odds = [market.odds_home, market.odds_draw, market.odds_away];
 
+    // Get current CPMM odds for the market
+    let currentMarketOdds = null;
+    try {
+        const currentOddsResult = await readContract('get_current_odds', BigInt(market.id));
+        if (currentOddsResult) {
+            const oddsNative = StellarSdk.scValToNative(currentOddsResult);
+            currentMarketOdds = oddsNative;
+        }
+    } catch (error) {
+        console.error('Error fetching current odds:', error);
+    }
+
     currentStake = {
         marketId: market.id,
         outcome: parseInt(outcomeId),
-        odds: odds[outcomeId]
+        odds: odds[outcomeId],
+        currentOdds: currentMarketOdds,
+        reserves: {
+            home: market.reserve_home || 0,
+            draw: market.reserve_draw || 0,
+            away: market.reserve_away || 0
+        }
     };
 
     modalTitle.textContent = 'Place Stake';
@@ -1319,7 +1337,7 @@ function openStakingModal(market, outcomeId) {
 
     // Reset form
     document.getElementById('stake-amount').value = '';
-    updatePayout();
+    await updatePayout();
 }
 
 function closeStakingModal() {
@@ -1328,20 +1346,91 @@ function closeStakingModal() {
     currentStake = null;
 }
 
-function updatePayout() {
+async function updatePayout() {
     const stakeAmount = parseFloat(document.getElementById('stake-amount').value) || 0;
+    const currentPriceEl = document.getElementById('current-price');
+    const quotePriceEl = document.getElementById('quote-price');
+    const slippagePercentEl = document.getElementById('slippage-percent');
     const potentialPayout = document.getElementById('potential-payout');
     const potentialProfit = document.getElementById('potential-profit');
 
     if (currentStake && stakeAmount > 0) {
-        // Convert odds BigInt to Number
-        const oddsNum = typeof currentStake.odds === 'bigint' ? Number(currentStake.odds) : currentStake.odds;
-        const payout = stakeAmount * CONFIG.decimals / oddsNum;
+        // Get current market data to calculate CPMM price
+        let currentPrice = 0;
+        let quotePrice = 0;
+        let slippagePercent = 0;
+
+        try {
+            // Fetch fresh market data
+            const market = await readContract('get_market', BigInt(currentStake.marketId));
+            if (market) {
+                const marketData = StellarSdk.scValToNative(market);
+
+                // Get reserves
+                const reserveHome = Number(marketData.reserve_home) || 0;
+                const reserveDraw = Number(marketData.reserve_draw) || 0;
+                const reserveAway = Number(marketData.reserve_away) || 0;
+                const totalReserve = reserveHome + reserveDraw + reserveAway;
+
+                // Get current reserve for selected outcome
+                let currentReserve = 0;
+                if (currentStake.outcome === 0) currentReserve = reserveHome;
+                else if (currentStake.outcome === 1) currentReserve = reserveDraw;
+                else if (currentStake.outcome === 2) currentReserve = reserveAway;
+
+                // Calculate current price (before stake)
+                if (totalReserve > 0 && currentReserve > 0) {
+                    currentPrice = (currentReserve * CONFIG.decimals) / totalReserve;
+                } else {
+                    // Fallback to initial odds
+                    const oddsNum = typeof currentStake.odds === 'bigint' ? Number(currentStake.odds) : currentStake.odds;
+                    currentPrice = oddsNum;
+                }
+
+                // Calculate quote price (middle price with slippage)
+                const stakeAmountMicros = stakeAmount * CONFIG.decimals;
+                const newReserve = currentReserve + stakeAmountMicros;
+                const newTotal = totalReserve + stakeAmountMicros;
+
+                // Price after stake
+                const priceAfter = newTotal > 0 ? (newReserve * CONFIG.decimals) / newTotal : currentPrice;
+
+                // Quote price is the average of before and after (what user actually gets)
+                quotePrice = (currentPrice + priceAfter) / 2;
+
+                // Calculate slippage percentage
+                if (currentPrice > 0) {
+                    slippagePercent = ((priceAfter - currentPrice) / currentPrice) * 100;
+                }
+            } else {
+                // Fallback to static odds if market data unavailable
+                const oddsNum = typeof currentStake.odds === 'bigint' ? Number(currentStake.odds) : currentStake.odds;
+                currentPrice = oddsNum;
+                quotePrice = oddsNum;
+            }
+        } catch (error) {
+            console.error('Error calculating quote price:', error);
+            // Fallback to static odds
+            const oddsNum = typeof currentStake.odds === 'bigint' ? Number(currentStake.odds) : currentStake.odds;
+            currentPrice = oddsNum;
+            quotePrice = oddsNum;
+        }
+
+        // Calculate payout and profit using quote price
+        const payout = stakeAmount * CONFIG.decimals / quotePrice;
         const profit = payout - stakeAmount;
 
+        // Update UI
+        currentPriceEl.textContent = `$${(currentPrice / CONFIG.decimals).toFixed(4)}`;
+        quotePriceEl.textContent = `$${(quotePrice / CONFIG.decimals).toFixed(4)}`;
+        slippagePercentEl.textContent = `${slippagePercent.toFixed(2)}%`;
         potentialPayout.textContent = `$${payout.toFixed(2)}`;
         potentialProfit.textContent = `$${profit.toFixed(2)}`;
     } else {
+        // Reset all values
+        currentPriceEl.textContent = '$0.00';
+        quotePriceEl.textContent = '$0.00';
+        slippagePercentEl.textContent = '0.00%';
         potentialPayout.textContent = '$0.00';
         potentialProfit.textContent = '$0.00';
     }
