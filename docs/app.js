@@ -1398,9 +1398,10 @@ async function updatePayout() {
                 // Quote price is the average of before and after (what user actually gets)
                 quotePrice = (currentPrice + priceAfter) / 2;
 
-                // Calculate slippage percentage
-                if (currentPrice > 0) {
-                    slippagePercent = ((priceAfter - currentPrice) / currentPrice) * 100;
+                // Calculate slippage percentage (how much worse the quote price is vs current)
+                // When buying, quote price > current price means you pay more (negative slippage)
+                if (quotePrice > 0 && currentPrice > 0) {
+                    slippagePercent = ((quotePrice - currentPrice) / currentPrice) * 100;
                 }
             } else {
                 // Fallback to static odds if market data unavailable
