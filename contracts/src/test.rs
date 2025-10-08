@@ -512,13 +512,21 @@ fn test_cash_out_functionality() {
     let balance_after_stake = client.get_balance(&user);
     assert_eq!(balance_after_stake, 9_000_000);
 
-    // User cashes out immediately (should get roughly similar amount minus 5% fee)
+    // User cashes out immediately
+    // With CPMM: buy has slippage, sell has slippage, 5% cashout fee
+    // Buy: shares = reserve * amount / (reserve + amount) = 4M * 1M / 5M = 800K shares
+    // Reserve after buy: 5M
+    // Sell: payout = shares * reserve / (reserve + shares) = 800K * 5M / 5.8M = 689,655
+    // After 5% fee: 655,172
+    // User loses money due to symmetric slippage + fee (as intended!)
     client.cash_out(&user, &1);
 
     let balance_after_cashout = client.get_balance(&user);
-    // Should be less than original due to 5% fee
+    // User should get back less than they staked due to slippage + 5% fee
     assert!(balance_after_cashout > balance_after_stake);
-    assert!(balance_after_cashout < 10_000_000);
+    // With symmetric CPMM, expect ~60-70% back (slippage + 5% fee)
+    assert!(balance_after_cashout < 10_000_000); // Less than original
+    assert!(balance_after_cashout > 9_600_000); // But should get most back with small trade
 }
 
 #[test]
@@ -557,4 +565,48 @@ fn test_cash_out_settled_market() {
 
     // Try to cash out after settlement - stake is removed, should fail with "stake not found"
     client.cash_out(&user, &1);
+}
+
+#[test]
+fn test_arbitrage_exploit_repeated_cycles() {
+    let env = Env::default();
+    let (admin, client) = create_admin_and_client(&env);
+    let attacker = Address::generate(&env);
+
+    // Setup: Market with $1000 initial liquidity
+    client.provide_liquidity(&admin, &10_000_000);
+    client.deposit(&attacker, &1_000_000); // Give attacker $1000
+
+    // Create market: home=$0.40, draw=$0.33, away=$0.26
+    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &330_000, &260_000, &1_000_000);
+
+    let initial_balance = client.get_balance(&attacker);
+    let mut current_balance = initial_balance;
+
+    // Attempt to exploit by buying and immediately cashing out repeatedly
+    for cycle in 0..5 {
+        let balance_before = current_balance;
+
+        // Stake 10% of balance
+        let stake_amount = current_balance / 10;
+        if stake_amount < 10_000 { break; }
+
+        // Buy shares
+        client.place_stake(&attacker, &1, &0, &stake_amount);
+
+        // Immediately cash out
+        let stake_id = cycle + 1;
+        client.cash_out(&attacker, &stake_id);
+
+        current_balance = client.get_balance(&attacker);
+
+        // Each cycle should not increase balance
+        assert!(current_balance <= balance_before + 100, "Arbitrage exploit detected in cycle!");
+    }
+
+    let total_profit = current_balance as i128 - initial_balance as i128;
+
+    // This should NOT be profitable - attacker should lose money or break even
+    // Allow small profit due to rounding (< 0.1%)
+    assert!(total_profit < initial_balance / 1000, "CRITICAL: Arbitrage exploit detected!");
 }

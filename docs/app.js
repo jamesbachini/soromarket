@@ -1090,7 +1090,7 @@ async function updateStakeCurrentValue(stake) {
                        stake.outcome === 1 ? marketData.reserve_draw :
                        marketData.reserve_away;
 
-        // Calculate cashout value using CPMM formula: shares_in * reserve / (reserve + shares_in)
+        // Calculate cashout value using CPMM: shares * reserve / (reserve + shares)
         const shares = Number(stake.amount);
         const reserveNum = Number(reserve);
         const payoutBeforeFee = (shares * reserveNum) / (reserveNum + shares);

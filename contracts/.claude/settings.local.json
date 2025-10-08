@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(cargo test)",
-      "Read(//mnt/c/code/soromarket/**)"
+      "Read(//mnt/c/code/soromarket/**)",
+      "Bash(cargo test:*)"
     ],
     "deny": [],
     "ask": []

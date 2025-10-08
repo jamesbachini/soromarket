@@ -267,7 +267,13 @@ impl PredictionMarketContract {
         };
         let total_reserve = market.reserve_home.checked_add(market.reserve_draw).expect("overflow").checked_add(market.reserve_away).expect("overflow");
         let price = Self::calculate_price_from_reserve(reserve, total_reserve);
-        let shares = Self::calculate_buy_amount_out(reserve, amount);
+        // Calculate shares using CPMM with slippage: shares = reserve * amount / (reserve + amount)
+        // This ensures buy-then-sell cannot be profitable
+        let shares = if reserve == 0 {
+            amount // First buyer gets 1:1
+        } else {
+            reserve.checked_mul(amount).expect("mul overflow").checked_div(reserve.checked_add(amount).expect("overflow")).expect("div error")
+        };
         match outcome {
             0 => market.reserve_home = market.reserve_home.checked_add(amount).expect("overflow reserve"),
             1 => market.reserve_draw = market.reserve_draw.checked_add(amount).expect("overflow reserve"),
@@ -288,7 +294,7 @@ impl PredictionMarketContract {
             staker: user.clone(),
             market_id,
             outcome,
-            amount: shares, // store shares, not USD amount
+            amount: shares, // store shares
             price,
         };
         let stake_key = Self::stake_key(stake_counter);
@@ -363,11 +369,16 @@ impl PredictionMarketContract {
             _ => panic!("invalid outcome"),
         };
         let shares = stake.amount;
-        // Calculate payout using CPMM: shares * reserve / (reserve + shares)
-        let payout_before_fee = Self::calculate_sell_amount_out(reserve, shares);
+        // Calculate payout using CPMM with slippage: payout = shares * reserve / (reserve + shares)
+        // This creates symmetric buy/sell mechanics that prevent arbitrage
+        let payout_before_fee = if reserve == 0 {
+            0
+        } else {
+            shares.checked_mul(reserve).expect("mul overflow").checked_div(reserve.checked_add(shares).expect("overflow")).expect("div error")
+        };
         let fee = payout_before_fee.checked_mul(CASHOUT_FEE_PERCENT).expect("mul overflow").checked_div(100).expect("div error");
         let payout_after_fee = payout_before_fee.checked_sub(fee).expect("underflow payout");
-        // When selling shares, remove payout_before_fee USD from reserve (not shares) reserve tracks USD amounts, not share amounts
+        // Remove the payout amount from the reserve
         match stake.outcome {
             0 => market.reserve_home = market.reserve_home.checked_sub(payout_before_fee).expect("underflow reserve"),
             1 => market.reserve_draw = market.reserve_draw.checked_sub(payout_before_fee).expect("underflow reserve"),
@@ -443,21 +454,6 @@ impl PredictionMarketContract {
         // price = reserve * DECIMALS / total_reserve
         if total_reserve == 0 { return 0; }
         reserve.checked_mul(DECIMALS).expect("mul overflow").checked_div(total_reserve).expect("div error")
-    }
-
-    fn calculate_buy_amount_out(reserve_in: i128, delta_in: i128) -> i128 {
-        // CPMM: when user bets, they add delta_in to reserve_in
-        // amount_out (shares purchased) = reserve_in * delta_in / (reserve_in + delta_in)
-        if reserve_in == 0 { return delta_in; } // edge case: no reserve yet
-        let new_reserve = reserve_in.checked_add(delta_in).expect("overflow reserve");
-        reserve_in.checked_mul(delta_in).expect("mul overflow").checked_div(new_reserve).expect("div error")
-    }
-
-    fn calculate_sell_amount_out(reserve_out: i128, shares_in: i128) -> i128 {
-        // CPMM: when user sells shares, they remove shares_in from reserve_out
-        // amount_out = shares_in * reserve_out / (reserve_out + shares_in)
-        if reserve_out == 0 { return 0; }
-        shares_in.checked_mul(reserve_out).expect("mul overflow").checked_div(reserve_out.checked_add(shares_in).expect("overflow")).expect("div error")
     }
 }
 
