@@ -1,7 +1,7 @@
 // SoroMarket Frontend - Stellar Soroban Integration
 
 const CONFIG = {
-    contractId: 'CAVPNMLWDQKAFWQD2AGS6TOMHQXYM4LYF2EQWNS7KL2PZM6RXFBHVZRJ',
+    contractId: 'CBCYEEQZR2C45PHUO6JDXRPND3BCFLCHWANTVQ4YDLSEXWOX7CR4USWJ',
     rpcUrl: 'https://soroban-testnet.stellar.org',
     networkPassphrase: StellarSdk.Networks.TESTNET,
     decimals: 1000000 // 6 decimal places

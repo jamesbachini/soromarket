@@ -370,7 +370,6 @@ impl PredictionMarketContract {
         };
         let shares = stake.amount;
         // Calculate payout using CPMM with slippage: payout = shares * reserve / (reserve + shares)
-        // This creates symmetric buy/sell mechanics that prevent arbitrage
         let payout_before_fee = if reserve == 0 {
             0
         } else {
@@ -378,7 +377,6 @@ impl PredictionMarketContract {
         };
         let fee = payout_before_fee.checked_mul(CASHOUT_FEE_PERCENT).expect("mul overflow").checked_div(100).expect("div error");
         let payout_after_fee = payout_before_fee.checked_sub(fee).expect("underflow payout");
-        // Remove the payout amount from the reserve
         match stake.outcome {
             0 => market.reserve_home = market.reserve_home.checked_sub(payout_before_fee).expect("underflow reserve"),
             1 => market.reserve_draw = market.reserve_draw.checked_sub(payout_before_fee).expect("underflow reserve"),
