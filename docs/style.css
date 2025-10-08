@@ -1029,7 +1029,7 @@ input::placeholder {
     padding: var(--space-xl);
 }
 
-.bet-details {
+.stake-details {
     margin-bottom: var(--space-xl);
 }
 
@@ -1595,13 +1595,13 @@ input::placeholder {
     font-size: var(--font-size-xs);
 }
 
-/* Bet Cards */
-.bets-grid {
+/* Stake Cards */
+.stakes-grid {
     display: grid;
     gap: var(--space-lg);
 }
 
-.bet-card {
+.stake-card {
     background: white;
     border: 2px solid var(--border);
     border-radius: var(--radius-lg);
@@ -1609,12 +1609,12 @@ input::placeholder {
     transition: all var(--transition-base);
 }
 
-.bet-card:hover {
+.stake-card:hover {
     border-color: var(--primary-color);
     box-shadow: var(--shadow-md);
 }
 
-.bet-header {
+.stake-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -1623,26 +1623,26 @@ input::placeholder {
     border-bottom: 2px solid var(--border);
 }
 
-.bet-title {
+.stake-title {
     font-size: var(--font-size-lg);
     font-weight: 700;
     color: var(--text-primary);
     margin: 0;
 }
 
-.bet-details-grid {
+.stake-details-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: var(--space-md);
 }
 
-.bet-detail {
+.stake-detail {
     display: flex;
     flex-direction: column;
     gap: var(--space-xs);
 }
 
-.bet-label {
+.stake-label {
     font-size: var(--font-size-xs);
     font-weight: 600;
     color: var(--text-secondary);
@@ -1650,18 +1650,18 @@ input::placeholder {
     letter-spacing: 0.05em;
 }
 
-.bet-value {
+.stake-value {
     font-size: var(--font-size-base);
     font-weight: 600;
     color: var(--text-primary);
 }
 
-.bet-value.profit {
+.stake-value.profit {
     color: var(--success);
     font-weight: 700;
 }
 
-.bet-value.loss {
+.stake-value.loss {
     color: var(--error);
     font-weight: 700;
 }

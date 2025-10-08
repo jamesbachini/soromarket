@@ -1,7 +1,7 @@
 // SoroMarket Frontend - Stellar Soroban Integration
 
 const CONFIG = {
-    contractId: 'CBRAHN2UYU7MX543UJMJOHYNJ6ZFZZNWLIEZJOX7M27AA6Y5QWSMY352',
+    contractId: 'CC4Z7VTOKYPH2NGSCL253T5YSM6GQDECQP26BYGCWDROY4U2ADHA552F',
     rpcUrl: 'https://soroban-testnet.stellar.org',
     networkPassphrase: StellarSdk.Networks.TESTNET,
     decimals: 1000000 // 6 decimal places
@@ -188,12 +188,12 @@ async function connectWallet() {
 
         // Show wallet section and load user data
         const walletSection = document.getElementById('wallet-section');
-        const myBetsSection = document.getElementById('my-bets-section');
+        const myStakesSection = document.getElementById('my-stakes-section');
         if (walletSection) walletSection.style.display = 'block';
-        if (myBetsSection) myBetsSection.style.display = 'block';
+        if (myStakesSection) myStakesSection.style.display = 'block';
 
         await loadUserBalance();
-        await loadUserBets();
+        await loadUserStakes();
 
     } catch (error) {
         console.error('Error connecting wallet:', error);
@@ -599,9 +599,9 @@ async function createMarket(title, startTime, homeOdds, drawOdds, awayOdds, init
     }
 }
 
-async function placeBet(marketId, outcome, amount) {
+async function placeStake(marketId, outcome, amount) {
     try {
-        showStatus('Placing bet...', 'info');
+        showStatus('Placing stake...', 'info');
         const userAddress = StellarSdk.Address.fromString(keypair.publicKey());
         const amountMicros = parseAmount(amount);
 
@@ -611,7 +611,7 @@ async function placeBet(marketId, outcome, amount) {
             networkPassphrase: CONFIG.networkPassphrase
         })
         .addOperation(contract.call(
-            'place_bet',
+            'place_stake',
             StellarSdk.nativeToScVal(userAddress.toString(), { type: 'address' }),
             StellarSdk.nativeToScVal(marketId, { type: 'u64' }),
             StellarSdk.nativeToScVal(outcome, { type: 'u32' }),
@@ -635,17 +635,17 @@ async function placeBet(marketId, outcome, amount) {
         }
 
         if (getResponse.status === 'SUCCESS') {
-            showStatus('Bet placed successfully!', 'success');
+            showStatus('Stake placed successfully!', 'success');
             await loadUserBalance();
-            await loadUserBets();
+            await loadUserStakes();
             await loadMarkets();
-            closeBettingModal();
+            closeStakingModal();
         } else {
             throw new Error('Transaction failed');
         }
     } catch (error) {
-        console.error('Error placing bet:', error);
-        showStatus('Failed to place bet', 'error');
+        console.error('Error placing stake:', error);
+        showStatus('Failed to place stake', 'error');
     }
 }
 
@@ -828,7 +828,7 @@ async function loadMarkets() {
                 </div>
             `).join('');
 
-            // Add click handlers for betting
+            // Add click handlers for staking
             container.querySelectorAll('.outcome').forEach(outcome => {
                 outcome.addEventListener('click', (e) => {
                     if (!keypair) {
@@ -841,7 +841,7 @@ async function loadMarkets() {
                     const outcomeId = outcome.dataset.outcome;
                     const market = markets.find(m => m.id == marketId);
 
-                    openBettingModal(market, outcomeId);
+                    openStakingModal(market, outcomeId);
                 });
             });
         }
@@ -956,7 +956,7 @@ async function loadAdminMarkets() {
                     <div class="admin-market-info">
                         <h4>Market ${market.id}: ${market.title}</h4>
                         <div class="admin-market-meta">
-                            Status: ${market.status} | Start: ${formatDateTime(market.start_time)} | Bettors: ${market.bettor_count}
+                            Status: ${market.status} | Start: ${formatDateTime(market.start_time)} | Stakers: ${market.staker_count}
                         </div>
                     </div>
                     <div class="admin-market-actions">
@@ -973,18 +973,18 @@ async function loadAdminMarkets() {
     }
 }
 
-async function loadUserBets() {
+async function loadUserStakes() {
     if (!keypair) return;
 
     try {
-        const container = document.getElementById('my-bets-container');
+        const container = document.getElementById('my-stakes-container');
         if (!container) return;
 
         const userAddress = keypair.publicKey();
-        const userBets = [];
+        const userStakes = [];
         const marketCache = {};
 
-        // Iterate through markets to find user's bets
+        // Iterate through markets to find user's stakes
         for (let marketId = 1; marketId <= 100; marketId++) {
             try {
                 const market = await readContract('get_market', BigInt(marketId));
@@ -994,18 +994,18 @@ async function loadUserBets() {
                 const status = Array.isArray(marketData.status) ? marketData.status[0] : marketData.status;
                 marketCache[marketId] = { ...marketData, status, id: marketId };
 
-                // Get all bets for this market
-                const betsResult = await readContract('get_market_bets', BigInt(marketId));
-                if (!betsResult) continue;
+                // Get all stakes for this market
+                const stakesResult = await readContract('get_market_stakes', BigInt(marketId));
+                if (!stakesResult) continue;
 
-                const bets = StellarSdk.scValToNative(betsResult);
+                const stakes = StellarSdk.scValToNative(stakesResult);
 
-                // Filter bets for current user
-                for (const bet of bets) {
-                    const betAddress = typeof bet.bettor === 'string' ? bet.bettor : bet.bettor.toString();
-                    if (betAddress === userAddress) {
-                        userBets.push({
-                            ...bet,
+                // Filter stakes for current user
+                for (const stake of stakes) {
+                    const stakeAddress = typeof stake.staker === 'string' ? stake.staker : stake.staker.toString();
+                    if (stakeAddress === userAddress) {
+                        userStakes.push({
+                            ...stake,
                             market: marketCache[marketId]
                         });
                     }
@@ -1016,36 +1016,36 @@ async function loadUserBets() {
             }
         }
 
-        if (userBets.length === 0) {
-            container.innerHTML = '<div class="no-markets"><div class="no-markets-content"><div class="no-markets-icon">🎫</div><h3>No Bets Yet</h3><p>Your bet history will appear here after placing bets</p></div></div>';
+        if (userStakes.length === 0) {
+            container.innerHTML = '<div class="no-markets"><div class="no-markets-content"><div class="no-markets-icon">🎫</div><h3>No Stakes Yet</h3><p>Your staking history will appear here after placing stakes</p></div></div>';
         } else {
             const outcomeNames = ['Home Win', 'Draw', 'Away Win'];
-            container.innerHTML = userBets.map(bet => `
-                <div class="bet-card" data-bet-id="${bet.id}">
-                    <div class="bet-header">
-                        <h4 class="bet-title">${bet.market.title}</h4>
-                        <span class="market-status ${bet.market.status.toLowerCase()}">${bet.market.status}</span>
+            container.innerHTML = userStakes.map(stake => `
+                <div class="stake-card" data-stake-id="${stake.id}">
+                    <div class="stake-header">
+                        <h4 class="stake-title">${stake.market.title}</h4>
+                        <span class="market-status ${stake.market.status.toLowerCase()}">${stake.market.status}</span>
                     </div>
-                    <div class="bet-details-grid">
-                        <div class="bet-detail">
-                            <span class="bet-label">Outcome</span>
-                            <span class="bet-value">${outcomeNames[bet.outcome]}</span>
+                    <div class="stake-details-grid">
+                        <div class="stake-detail">
+                            <span class="stake-label">Outcome</span>
+                            <span class="stake-value">${outcomeNames[stake.outcome]}</span>
                         </div>
-                        <div class="bet-detail">
-                            <span class="bet-label">Shares</span>
-                            <span class="bet-value">$${formatAmount(bet.amount)}</span>
+                        <div class="stake-detail">
+                            <span class="stake-label">Shares</span>
+                            <span class="stake-value">$${formatAmount(stake.amount)}</span>
                         </div>
-                        <div class="bet-detail">
-                            <span class="bet-label">Entry Odds</span>
-                            <span class="bet-value">$${formatAmount(bet.price)}</span>
+                        <div class="stake-detail">
+                            <span class="stake-label">Entry Odds</span>
+                            <span class="stake-value">$${formatAmount(stake.price)}</span>
                         </div>
-                        <div class="bet-detail">
-                            <span class="bet-label">Current Value</span>
-                            <span class="bet-value profit" data-bet-id="${bet.id}-value">Calculating...</span>
+                        <div class="stake-detail">
+                            <span class="stake-label">Current Value</span>
+                            <span class="stake-value profit" data-stake-id="${stake.id}-value">Calculating...</span>
                         </div>
                     </div>
-                    ${bet.market.status === 'Active' ? `
-                        <button class="btn btn-warning cash-out-btn" onclick="cashOutBet(${bet.id})" style="margin-top: 10px; width: 100%;">
+                    ${stake.market.status === 'Active' ? `
+                        <button class="btn btn-warning cash-out-btn" onclick="cashOutStake(${stake.id})" style="margin-top: 10px; width: 100%;">
                             Cash Out (5% fee)
                         </button>
                     ` : ''}
@@ -1053,39 +1053,39 @@ async function loadUserBets() {
             `).join('');
 
             // Calculate and update current values
-            userBets.forEach(async bet => {
-                if (bet.market.status === 'Active') {
-                    await updateBetCurrentValue(bet);
+            userStakes.forEach(async stake => {
+                if (stake.market.status === 'Active') {
+                    await updateStakeCurrentValue(stake);
                 }
             });
         }
     } catch (error) {
-        console.error('Error loading user bets:', error);
+        console.error('Error loading user stakes:', error);
     }
 }
 
-async function updateBetCurrentValue(bet) {
+async function updateStakeCurrentValue(stake) {
     try {
         // Get current odds for the market
-        const currentOdds = await readContract('get_current_odds', BigInt(bet.market_id));
+        const currentOdds = await readContract('get_current_odds', BigInt(stake.market_id));
         if (!currentOdds) return;
 
         const oddsNative = StellarSdk.scValToNative(currentOdds);
-        const currentPrice = oddsNative[bet.outcome];
+        const currentPrice = oddsNative[stake.outcome];
 
         // Calculate current value: shares * current_price / DECIMALS
-        const currentValue = Number(bet.amount) * Number(currentPrice) / CONFIG.decimals;
+        const currentValue = Number(stake.amount) * Number(currentPrice) / CONFIG.decimals;
 
         // Apply 5% cashout fee
         const valueAfterFee = currentValue * 0.95;
 
         // Update UI
-        const valueElement = document.querySelector(`[data-bet-id="${bet.id}-value"]`);
+        const valueElement = document.querySelector(`[data-stake-id="${stake.id}-value"]`);
         if (valueElement) {
             valueElement.textContent = `$${valueAfterFee.toFixed(2)}`;
 
             // Add profit/loss indicator
-            const entryValue = Number(bet.amount) * Number(bet.price) / CONFIG.decimals;
+            const entryValue = Number(stake.amount) * Number(stake.price) / CONFIG.decimals;
             if (valueAfterFee > entryValue) {
                 valueElement.classList.add('profit');
                 valueElement.classList.remove('loss');
@@ -1095,11 +1095,11 @@ async function updateBetCurrentValue(bet) {
             }
         }
     } catch (error) {
-        console.error('Error updating bet value:', error);
+        console.error('Error updating stake value:', error);
     }
 }
 
-async function cashOutBet(betId) {
+async function cashOutStake(stakeId) {
     if (!keypair) {
         showStatus('Please connect your wallet first', 'warning');
         return;
@@ -1109,26 +1109,26 @@ async function cashOutBet(betId) {
         showStatus('Processing cash out...', 'info');
 
         const userAddress = StellarSdk.Address.fromString(keypair.publicKey());
-        await callContract('cash_out', userAddress, BigInt(betId));
+        await callContract('cash_out', userAddress, BigInt(stakeId));
 
         showStatus('Successfully cashed out!', 'success');
 
         // Reload user data
         await Promise.all([
             loadUserBalance(),
-            loadUserBets()
+            loadUserStakes()
         ]);
     } catch (error) {
         console.error('Error cashing out:', error);
-        showStatus('Failed to cash out bet', 'error');
+        showStatus('Failed to cash out stake', 'error');
     }
 }
 
 // UI Functions
-let currentBet = null;
+let currentStake = null;
 
-function openBettingModal(market, outcomeId) {
-    const modal = document.getElementById('betting-modal');
+function openStakingModal(market, outcomeId) {
+    const modal = document.getElementById('staking-modal');
     const modalTitle = document.getElementById('modal-title');
     const modalMatchTitle = document.getElementById('modal-match-title');
     const modalMatchTime = document.getElementById('modal-match-time');
@@ -1138,13 +1138,13 @@ function openBettingModal(market, outcomeId) {
     const outcomes = ['Home Win', 'Draw', 'Away Win'];
     const odds = [market.odds_home, market.odds_draw, market.odds_away];
 
-    currentBet = {
+    currentStake = {
         marketId: market.id,
         outcome: parseInt(outcomeId),
         odds: odds[outcomeId]
     };
 
-    modalTitle.textContent = 'Place Bet';
+    modalTitle.textContent = 'Place Stake';
     modalMatchTitle.textContent = market.title;
     modalMatchTime.textContent = formatDateTime(market.start_time);
     selectedOutcome.textContent = outcomes[outcomeId];
@@ -1153,26 +1153,26 @@ function openBettingModal(market, outcomeId) {
     modal.classList.add('show');
 
     // Reset form
-    document.getElementById('bet-amount').value = '';
+    document.getElementById('stake-amount').value = '';
     updatePayout();
 }
 
-function closeBettingModal() {
-    const modal = document.getElementById('betting-modal');
+function closeStakingModal() {
+    const modal = document.getElementById('staking-modal');
     modal.classList.remove('show');
-    currentBet = null;
+    currentStake = null;
 }
 
 function updatePayout() {
-    const betAmount = parseFloat(document.getElementById('bet-amount').value) || 0;
+    const stakeAmount = parseFloat(document.getElementById('stake-amount').value) || 0;
     const potentialPayout = document.getElementById('potential-payout');
     const potentialProfit = document.getElementById('potential-profit');
 
-    if (currentBet && betAmount > 0) {
+    if (currentStake && stakeAmount > 0) {
         // Convert odds BigInt to Number
-        const oddsNum = typeof currentBet.odds === 'bigint' ? Number(currentBet.odds) : currentBet.odds;
-        const payout = betAmount * CONFIG.decimals / oddsNum;
-        const profit = payout - betAmount;
+        const oddsNum = typeof currentStake.odds === 'bigint' ? Number(currentStake.odds) : currentStake.odds;
+        const payout = stakeAmount * CONFIG.decimals / oddsNum;
+        const profit = payout - stakeAmount;
 
         potentialPayout.textContent = `$${payout.toFixed(2)}`;
         potentialProfit.textContent = `$${profit.toFixed(2)}`;
@@ -1398,34 +1398,34 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Betting modal handlers
+    // Staking modal handlers
     const closeModal = document.getElementById('close-modal');
-    const placeBetBtn = document.getElementById('place-bet-btn');
-    const betAmountInput = document.getElementById('bet-amount');
+    const placeStakeBtn = document.getElementById('place-stake-btn');
+    const stakeAmountInput = document.getElementById('stake-amount');
 
     if (closeModal) {
-        closeModal.addEventListener('click', closeBettingModal);
+        closeModal.addEventListener('click', closeStakingModal);
     }
 
-    if (placeBetBtn) {
-        placeBetBtn.addEventListener('click', () => {
-            const amount = document.getElementById('bet-amount').value;
-            if (currentBet && amount && parseFloat(amount) > 0) {
-                placeBet(currentBet.marketId, currentBet.outcome, amount);
+    if (placeStakeBtn) {
+        placeStakeBtn.addEventListener('click', () => {
+            const amount = document.getElementById('stake-amount').value;
+            if (currentStake && amount && parseFloat(amount) > 0) {
+                placeStake(currentStake.marketId, currentStake.outcome, amount);
             }
         });
     }
 
-    if (betAmountInput) {
-        betAmountInput.addEventListener('input', updatePayout);
+    if (stakeAmountInput) {
+        stakeAmountInput.addEventListener('input', updatePayout);
     }
 
     // Close modal when clicking outside
-    const modal = document.getElementById('betting-modal');
+    const modal = document.getElementById('staking-modal');
     if (modal) {
         modal.addEventListener('click', (e) => {
             if (e.target === modal) {
-                closeBettingModal();
+                closeStakingModal();
             }
         });
     }

@@ -34,7 +34,7 @@ fn test_liquidity_provision() {
 }
 
 #[test]
-fn test_create_market_and_bet() {
+fn test_create_market_and_stake() {
     let env = Env::default();
     let (admin, client) = create_admin_and_client(&env);
     let user = Address::generate(&env);
@@ -45,7 +45,7 @@ fn test_create_market_and_bet() {
     let market = client.get_market(&1); // Get the created market by ID
     assert_eq!(market.id, 1);
     assert_eq!(market.title, soroban_sdk::symbol_short!("BrazilEng"));
-    client.place_bet(&user, &1, &0, &500_000); // market_id=1, outcome=0 (home)
+    client.place_stake(&user, &1, &0, &500_000); // market_id=1, outcome=0 (home)
     assert_eq!(client.get_balance(&user), 500_000);
 }
 
@@ -59,8 +59,8 @@ fn test_settlement() {
     client.deposit(&user1, &1_000_000);
     client.deposit(&user2, &1_000_000);
     client.create_market(&admin, &soroban_sdk::symbol_short!("BrazilEng"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
-    client.place_bet(&user1, &1, &0, &1_000_000); // bet on home (outcome 0)
-    client.place_bet(&user2, &1, &1, &1_000_000); // bet on draw (outcome 1)
+    client.place_stake(&user1, &1, &0, &1_000_000); // stake on home (outcome 0)
+    client.place_stake(&user2, &1, &1, &1_000_000); // stake on draw (outcome 1)
     client.settle_market(&admin, &1, &0); // settle market 1 with outcome 0 (home wins)
     // User1 should be paid (1m / 400k * 1m = 2.5m payout total, minus escrow logic)
     let bal1 = client.get_balance(&user1);
@@ -168,67 +168,67 @@ fn test_withdraw_more_than_balance() {
 
 #[test]
 #[should_panic(expected = "insufficient balance")]
-fn test_bet_more_than_balance() {
+fn test_stake_more_than_balance() {
     let env = Env::default();
     let (admin, client) = create_admin_and_client(&env);
     let user = Address::generate(&env);
     client.provide_liquidity(&admin, &10_000_000);
     client.deposit(&user, &500_000);
     client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
-    client.place_bet(&user, &1, &0, &600_000);
+    client.place_stake(&user, &1, &0, &600_000);
 }
 
 #[test]
-#[should_panic(expected = "bet amount positive")]
-fn test_bet_zero_amount() {
+#[should_panic(expected = "stake amount positive")]
+fn test_stake_zero_amount() {
     let env = Env::default();
     let (admin, client) = create_admin_and_client(&env);
     let user = Address::generate(&env);
     client.provide_liquidity(&admin, &10_000_000);
     client.deposit(&user, &1_000_000);
     client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
-    client.place_bet(&user, &1, &0, &0);
+    client.place_stake(&user, &1, &0, &0);
 }
 
 #[test]
 #[should_panic(expected = "invalid outcome")]
-fn test_bet_invalid_outcome() {
+fn test_stake_invalid_outcome() {
     let env = Env::default();
     let (admin, client) = create_admin_and_client(&env);
     let user = Address::generate(&env);
     client.provide_liquidity(&admin, &10_000_000);
     client.deposit(&user, &1_000_000);
     client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
-    client.place_bet(&user, &1, &3, &500_000);
+    client.place_stake(&user, &1, &3, &500_000);
 }
 
 #[test]
 #[should_panic(expected = "market not found")]
-fn test_bet_nonexistent_market() {
+fn test_stake_nonexistent_market() {
     let env = Env::default();
     let (_admin, client) = create_admin_and_client(&env);
     let user = Address::generate(&env);
     client.deposit(&user, &1_000_000);
-    client.place_bet(&user, &999, &0, &500_000);
+    client.place_stake(&user, &999, &0, &500_000);
 }
 
 #[test]
 #[should_panic(expected = "market not active")]
-fn test_bet_on_settled_market() {
+fn test_stake_on_settled_market() {
     let env = Env::default();
     let (admin, client) = create_admin_and_client(&env);
     let user = Address::generate(&env);
     client.provide_liquidity(&admin, &10_000_000);
     client.deposit(&user, &2_000_000);
     client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
-    client.place_bet(&user, &1, &0, &1_000_000);
+    client.place_stake(&user, &1, &0, &1_000_000);
     client.settle_market(&admin, &1, &0);
-    client.place_bet(&user, &1, &0, &500_000); // Should fail
+    client.place_stake(&user, &1, &0, &500_000); // Should fail
 }
 
 #[test]
 #[should_panic(expected = "market not active")]
-fn test_bet_on_archived_market() {
+fn test_stake_on_archived_market() {
     let env = Env::default();
     let (admin, client) = create_admin_and_client(&env);
     let user = Address::generate(&env);
@@ -236,7 +236,7 @@ fn test_bet_on_archived_market() {
     client.deposit(&user, &1_000_000);
     client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
     client.archive_market(&admin, &1);
-    client.place_bet(&user, &1, &0, &500_000);
+    client.place_stake(&user, &1, &0, &500_000);
 }
 
 #[test]
@@ -257,13 +257,13 @@ fn test_double_settlement() {
     client.provide_liquidity(&admin, &10_000_000);
     client.deposit(&user, &1_000_000);
     client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
-    client.place_bet(&user, &1, &0, &500_000);
+    client.place_stake(&user, &1, &0, &500_000);
     client.settle_market(&admin, &1, &0);
     client.settle_market(&admin, &1, &0); // Should fail
 }
 
 // Note: This test is removed because with CPMM dynamic pricing,
-// bet amounts add to both reserves AND total liquidity, making it
+// stake amounts add to both reserves AND total liquidity, making it
 // difficult to create insufficient liquidity scenarios naturally.
 
 #[test]
@@ -296,7 +296,7 @@ fn test_withdraw_more_liquidity_than_provided() {
 }
 
 #[test]
-fn test_market_bettor_count_tracking() {
+fn test_market_staker_count_tracking() {
     let env = Env::default();
     let (admin, client) = create_admin_and_client(&env);
     let user1 = Address::generate(&env);
@@ -306,26 +306,26 @@ fn test_market_bettor_count_tracking() {
     client.deposit(&user2, &1_000_000);
     client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
 
-    assert_eq!(client.get_bettor_count(&1), 0);
-    client.place_bet(&user1, &1, &0, &500_000);
-    assert_eq!(client.get_bettor_count(&1), 1);
-    client.place_bet(&user2, &1, &1, &500_000);
-    assert_eq!(client.get_bettor_count(&1), 2);
+    assert_eq!(client.get_staker_count(&1), 0);
+    client.place_stake(&user1, &1, &0, &500_000);
+    assert_eq!(client.get_staker_count(&1), 1);
+    client.place_stake(&user2, &1, &1, &500_000);
+    assert_eq!(client.get_staker_count(&1), 2);
 }
 
 #[test]
-fn test_market_bettor_count_increments() {
+fn test_market_staker_count_increments() {
     let env = Env::default();
     let (admin, client) = create_admin_and_client(&env);
     client.provide_liquidity(&admin, &10_000_000);
     client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
 
-    // Test that bettor count increments correctly
+    // Test that staker count increments correctly
     for i in 0..10u32 {
         let user = Address::generate(&env);
         client.deposit(&user, &100_000);
-        client.place_bet(&user, &1, &(i % 3), &50_000);
-        assert_eq!(client.get_bettor_count(&1), i + 1);
+        client.place_stake(&user, &1, &(i % 3), &50_000);
+        assert_eq!(client.get_staker_count(&1), i + 1);
     }
 }
 
@@ -355,10 +355,10 @@ fn test_balance_consistency_after_multiple_operations() {
     assert_eq!(initial_total_liq, 13_000_000); // 10M + 1M + 2M
 
     client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
-    client.place_bet(&user1, &1, &0, &500_000);
-    client.place_bet(&user2, &1, &1, &1_000_000);
+    client.place_stake(&user1, &1, &0, &500_000);
+    client.place_stake(&user2, &1, &1, &1_000_000);
 
-    // Liquidity should include the bet amounts
+    // Liquidity should include the stake amounts
     assert_eq!(client.total_liquidity(), 14_500_000); // 13M + 0.5M + 1M
     assert_eq!(client.get_balance(&user1), 500_000);
     assert_eq!(client.get_balance(&user2), 1_000_000);
@@ -375,7 +375,7 @@ fn test_normal_settlement_works() {
 
     // Create market with valid odds
     client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
-    client.place_bet(&user, &1, &0, &500_000);
+    client.place_stake(&user, &1, &0, &500_000);
 
     // Normal settlement should work fine with valid prices
     client.settle_market(&admin, &1, &0);
@@ -414,8 +414,8 @@ fn test_payout_calculation_precision() {
     // Odds: home=40%, draw=25%, away=34% (sum = 99%)
     client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
 
-    let bet_amount = 1_000_000i128; // $1.00
-    client.place_bet(&user, &1, &0, &bet_amount);
+    let stake_amount = 1_000_000i128; // $1.00
+    client.place_stake(&user, &1, &0, &stake_amount);
 
     // With CPMM, the payout is determined by the reserve pool
     // Market gets 100M liquidity, reserve_home should be 40M initially
@@ -437,10 +437,10 @@ fn test_get_nonexistent_market() {
 
 #[test]
 #[should_panic(expected = "market not found")]
-fn test_get_bettor_count_nonexistent_market() {
+fn test_get_staker_count_nonexistent_market() {
     let env = Env::default();
     let (_admin, client) = create_admin_and_client(&env);
-    client.get_bettor_count(&999);
+    client.get_staker_count(&999);
 }
 
 #[test]
@@ -480,8 +480,8 @@ fn test_dynamic_pricing_cpmm() {
     assert!(odds_draw > 240_000 && odds_draw < 260_000);
     assert!(odds_away > 330_000 && odds_away < 350_000);
 
-    // User1 bets on home - should increase home price
-    client.place_bet(&user1, &1, &0, &5_000_000);
+    // User1 stakes on home - should increase home price
+    client.place_stake(&user1, &1, &0, &5_000_000);
 
     // Check that odds changed
     let (new_odds_home, new_odds_draw, new_odds_away) = client.get_current_odds(&1);
@@ -489,8 +489,8 @@ fn test_dynamic_pricing_cpmm() {
     assert!(new_odds_draw < odds_draw); // Draw price decreased relatively
     assert!(new_odds_away < odds_away); // Away price decreased relatively
 
-    // User2 bets on away - should increase away price
-    client.place_bet(&user2, &1, &2, &5_000_000);
+    // User2 stakes on away - should increase away price
+    client.place_stake(&user2, &1, &2, &5_000_000);
 
     let (_final_odds_home, _final_odds_draw, final_odds_away) = client.get_current_odds(&1);
     assert!(final_odds_away > new_odds_away); // Away price increased
@@ -507,22 +507,22 @@ fn test_cash_out_functionality() {
 
     client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
 
-    // User places bet
-    client.place_bet(&user, &1, &0, &1_000_000);
-    let balance_after_bet = client.get_balance(&user);
-    assert_eq!(balance_after_bet, 9_000_000);
+    // User places stake
+    client.place_stake(&user, &1, &0, &1_000_000);
+    let balance_after_stake = client.get_balance(&user);
+    assert_eq!(balance_after_stake, 9_000_000);
 
     // User cashes out immediately (should get roughly similar amount minus 5% fee)
     client.cash_out(&user, &1);
 
     let balance_after_cashout = client.get_balance(&user);
     // Should be less than original due to 5% fee
-    assert!(balance_after_cashout > balance_after_bet);
+    assert!(balance_after_cashout > balance_after_stake);
     assert!(balance_after_cashout < 10_000_000);
 }
 
 #[test]
-#[should_panic(expected = "unauthorized: not bet owner")]
+#[should_panic(expected = "unauthorized: not stake owner")]
 fn test_cash_out_unauthorized() {
     let env = Env::default();
     let (admin, client) = create_admin_and_client(&env);
@@ -534,14 +534,14 @@ fn test_cash_out_unauthorized() {
 
     client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
 
-    client.place_bet(&user1, &1, &0, &1_000_000);
+    client.place_stake(&user1, &1, &0, &1_000_000);
 
-    // User2 tries to cash out User1's bet - should fail
+    // User2 tries to cash out User1's stake - should fail
     client.cash_out(&user2, &1);
 }
 
 #[test]
-#[should_panic(expected = "bet not found")]
+#[should_panic(expected = "stake not found")]
 fn test_cash_out_settled_market() {
     let env = Env::default();
     let (admin, client) = create_admin_and_client(&env);
@@ -552,9 +552,9 @@ fn test_cash_out_settled_market() {
 
     client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
 
-    client.place_bet(&user, &1, &0, &1_000_000);
+    client.place_stake(&user, &1, &0, &1_000_000);
     client.settle_market(&admin, &1, &0);
 
-    // Try to cash out after settlement - bet is removed, should fail with "bet not found"
+    // Try to cash out after settlement - stake is removed, should fail with "stake not found"
     client.cash_out(&user, &1);
 }

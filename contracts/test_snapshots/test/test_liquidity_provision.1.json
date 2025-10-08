@@ -58,7 +58,7 @@
           "contract_data": {
             "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4",
             "key": {
-              "symbol": "BET_CNT"
+              "symbol": "MKT_CNT"
             },
             "durability": "persistent"
           }
@@ -71,7 +71,7 @@
                 "ext": "v0",
                 "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4",
                 "key": {
-                  "symbol": "BET_CNT"
+                  "symbol": "MKT_CNT"
                 },
                 "durability": "persistent",
                 "val": {
@@ -89,7 +89,7 @@
           "contract_data": {
             "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4",
             "key": {
-              "symbol": "MKT_CNT"
+              "symbol": "STK_CNT"
             },
             "durability": "persistent"
           }
@@ -102,7 +102,7 @@
                 "ext": "v0",
                 "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4",
                 "key": {
-                  "symbol": "MKT_CNT"
+                  "symbol": "STK_CNT"
                 },
                 "durability": "persistent",
                 "val": {

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SoroMarket - World Cup 2026 Prediction Markets</title>
-    <meta name="description" content="Bet on World Cup 2026 matches with decentralized prediction markets on Stellar Soroban">
+    <meta name="description" content="Stake on World Cup 2026 matches with decentralized prediction markets on Stellar Soroban">
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -46,7 +46,7 @@
                 <div class="hero-content">
                     <div class="hero-badge">
                         <span class="badge-icon">⚽</span>
-                        <span>FIFA World Cup 2026</span>
+                        <span>World Cup 2026 - United States, Canada & Mexico</span>
                     </div>
                     <h1 class="hero-title">
                         <span class="title-line">Decentralized</span>
@@ -121,7 +121,7 @@
                 <div class="section-header">
                     <div class="section-title-group">
                         <h2 class="section-title">⚽ Live Matches</h2>
-                        <p class="section-subtitle">Place your bets on upcoming World Cup matches</p>
+                        <p class="section-subtitle">Place your stakes on upcoming World Cup matches</p>
                     </div>
                 </div>
                 <div id="markets-container" class="markets-grid">
@@ -136,33 +136,33 @@
                 </div>
             </section>
 
-            <!-- My Bets Section -->
-            <section class="my-bets-section" id="my-bets-section" style="display: none;">
+            <!-- My Stakes Section -->
+            <section class="my-stakes-section" id="my-stakes-section" style="display: none;">
                 <div class="section-header">
                     <div class="section-title-group">
-                        <h2 class="section-title">🎫 My Bets</h2>
-                        <p class="section-subtitle">Track your active and settled bets</p>
+                        <h2 class="section-title">🎫 My Stakes</h2>
+                        <p class="section-subtitle">Track your active and settled positions</p>
                     </div>
                 </div>
-                <div id="my-bets-container" class="bets-grid">
-                    <!-- User's bets will be displayed here -->
+                <div id="my-stakes-container" class="stakes-grid">
+                    <!-- User's stakes will be displayed here -->
                 </div>
             </section>
         </div>
     </main>
 
-    <!-- Betting Modal -->
-    <div id="betting-modal" class="modal">
+    <!-- Staking Modal -->
+    <div id="staking-modal" class="modal">
         <div class="modal-backdrop"></div>
         <div class="modal-content">
             <div class="modal-header">
                 <div class="modal-title-group">
-                    <h3 id="modal-title">🎯 Place Bet</h3>
+                    <h3 id="modal-title">🎯 Place Stake</h3>
                 </div>
                 <button class="modal-close" id="close-modal">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="bet-details">
+                <div class="stake-details">
                     <div class="match-info-card">
                         <div class="match-info">
                             <div id="modal-match-title" class="match-title"></div>
@@ -177,12 +177,12 @@
                         </div>
                     </div>
                 </div>
-                <div class="bet-form">
+                <div class="stake-form">
                     <div class="input-group">
-                        <label for="bet-amount">Bet Amount (USD)</label>
+                        <label for="stake-amount">Stake Amount (USD)</label>
                         <div class="input-wrapper">
                             <span class="input-prefix">$</span>
-                            <input type="number" id="bet-amount" placeholder="0.00" step="0.01" min="0.01">
+                            <input type="number" id="stake-amount" placeholder="0.00" step="0.01" min="0.01">
                         </div>
                     </div>
                     <div class="payout-info">
@@ -195,8 +195,8 @@
                             <span id="potential-profit" class="payout-value profit">$0.00</span>
                         </div>
                     </div>
-                    <button id="place-bet-btn" class="btn btn-primary btn-large btn-gradient">
-                        <span>Confirm Bet</span>
+                    <button id="place-stake-btn" class="btn btn-primary btn-large btn-gradient">
+                        <span>Confirm Stake</span>
                     </button>
                 </div>
             </div>
