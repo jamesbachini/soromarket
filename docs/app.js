@@ -1153,8 +1153,12 @@ async function loadUserStakes() {
                             <span class="stake-value" data-stake-id="${stake.id}-current-odds">Calculating...</span>
                         </div>
                         <div class="stake-detail">
-                            <span class="stake-label">Current Value</span>
-                            <span class="stake-value profit" data-stake-id="${stake.id}-value">Calculating...</span>
+                            <span class="stake-label">Settlement Value</span>
+                            <span class="stake-value" data-stake-id="${stake.id}-settlement">Calculating...</span>
+                        </div>
+                        <div class="stake-detail">
+                            <span class="stake-label">Cashout Value</span>
+                            <span class="stake-value profit" data-stake-id="${stake.id}-cashout">Calculating...</span>
                         </div>
                     </div>
                     ${stake.market.status === 'Active' ? `
@@ -1224,24 +1228,35 @@ async function updateStakeCurrentValue(stake) {
         // Average exit price (with slippage)
         const avgExitPrice = (priceBeforeExit + priceAfterExit) / 2;
 
-        // Current value (before 5% fee)
-        const currentValue = (shares * avgExitPrice) / CONFIG.decimals;
+        // Settlement value: fixed $1 per share (what you get if you win)
+        const settlementValue = shares;
 
-        // Update UI (show current value without the 5% cashout fee)
-        const valueElement = document.querySelector(`[data-stake-id="${stake.id}-value"]`);
-        if (valueElement) {
-            valueElement.textContent = `$${(currentValue / CONFIG.decimals).toFixed(2)}`;
+        // Cashout value: current market value (before 5% fee)
+        const cashoutValueBeforeFee = (shares * avgExitPrice) / CONFIG.decimals;
+        const cashoutFee = cashoutValueBeforeFee * 0.05;
+        const cashoutValueAfterFee = cashoutValueBeforeFee - cashoutFee;
 
-            // Calculate entry value for comparison (shares bought at entry price)
+        // Update Settlement Value
+        const settlementElement = document.querySelector(`[data-stake-id="${stake.id}-settlement"]`);
+        if (settlementElement) {
+            settlementElement.textContent = `$${(settlementValue / CONFIG.decimals).toFixed(2)}`;
+        }
+
+        // Update Cashout Value
+        const cashoutElement = document.querySelector(`[data-stake-id="${stake.id}-cashout"]`);
+        if (cashoutElement) {
+            cashoutElement.textContent = `$${(cashoutValueAfterFee / CONFIG.decimals).toFixed(2)}`;
+
+            // Calculate entry value for comparison (amount originally paid)
             const entryValue = (shares * Number(stake.price)) / CONFIG.decimals;
-            const displayValue = currentValue / CONFIG.decimals;
+            const displayValue = cashoutValueAfterFee / CONFIG.decimals;
 
             if (displayValue > entryValue) {
-                valueElement.classList.add('profit');
-                valueElement.classList.remove('loss');
+                cashoutElement.classList.add('profit');
+                cashoutElement.classList.remove('loss');
             } else if (displayValue < entryValue) {
-                valueElement.classList.add('loss');
-                valueElement.classList.remove('profit');
+                cashoutElement.classList.add('loss');
+                cashoutElement.classList.remove('profit');
             }
         }
     } catch (error) {

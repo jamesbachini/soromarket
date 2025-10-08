@@ -78,9 +78,10 @@ impl PredictionMarketContract {
         let mut counter: u64 = env.storage().persistent().get(&key_market_counter()).unwrap_or(0u64);
         counter += 1;
         env.storage().persistent().set(&key_market_counter(), &counter);
-        let reserve_home = odds_home;
-        let reserve_draw = odds_draw;
-        let reserve_away = odds_away;
+        const BASE_RESERVE_MULTIPLIER: i128 = 1000; // $1000 initial reserve
+        let reserve_home = odds_home.checked_mul(BASE_RESERVE_MULTIPLIER).expect("mul overflow");
+        let reserve_draw = odds_draw.checked_mul(BASE_RESERVE_MULTIPLIER).expect("mul overflow");
+        let reserve_away = odds_away.checked_mul(BASE_RESERVE_MULTIPLIER).expect("mul overflow");
         let market = Market {
             id: counter,
             title: title.clone(),
@@ -433,11 +434,6 @@ impl PredictionMarketContract {
         let mut bal: i128 = env.storage().persistent().get(&Self::user_key(user)).unwrap_or(0i128);
         bal = bal.checked_add(amount).expect("overflow credit user bal");
         env.storage().persistent().set(&Self::user_key(user), &bal);
-    }
-
-    fn calculate_reserve_from_price(total_reserve: i128, price: i128) -> i128 {
-        // reserve = total_reserve * price / DECIMALS
-        total_reserve.checked_mul(price).expect("mul overflow").checked_div(DECIMALS).expect("div error")
     }
 
     fn calculate_price_from_reserve(reserve: i128, total_reserve: i128) -> i128 {

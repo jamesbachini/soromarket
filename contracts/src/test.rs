@@ -41,7 +41,7 @@ fn test_create_market_and_stake() {
     client.provide_liquidity(&admin, &10_000_000);
     client.deposit(&user, &1_000_000);
     // Create market Brazil vs England with odds 40%, 25%, 34% => sums to 99
-    client.create_market(&admin, &soroban_sdk::symbol_short!("BrazilEng"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
+    client.create_market(&admin, &soroban_sdk::symbol_short!("BrazilEng"), &1234567890, &400_000, &250_000, &340_000);
     let market = client.get_market(&1); // Get the created market by ID
     assert_eq!(market.id, 1);
     assert_eq!(market.title, soroban_sdk::symbol_short!("BrazilEng"));
@@ -58,7 +58,7 @@ fn test_settlement() {
     client.provide_liquidity(&admin, &20_000_000);
     client.deposit(&user1, &1_000_000);
     client.deposit(&user2, &1_000_000);
-    client.create_market(&admin, &soroban_sdk::symbol_short!("BrazilEng"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
+    client.create_market(&admin, &soroban_sdk::symbol_short!("BrazilEng"), &1234567890, &400_000, &250_000, &340_000);
     client.place_stake(&user1, &1, &0, &1_000_000); // stake on home (outcome 0)
     client.place_stake(&user2, &1, &1, &1_000_000); // stake on draw (outcome 1)
     client.settle_market(&admin, &1, &0); // settle market 1 with outcome 0 (home wins)
@@ -77,7 +77,7 @@ fn test_non_admin_create_market() {
     let env = Env::default();
     let (_admin, client) = create_admin_and_client(&env);
     let attacker = Address::generate(&env);
-    client.create_market(&attacker, &soroban_sdk::symbol_short!("Attack"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
+    client.create_market(&attacker, &soroban_sdk::symbol_short!("Attack"), &1234567890, &400_000, &250_000, &340_000);
 }
 
 #[test]
@@ -86,7 +86,7 @@ fn test_non_admin_settle_market() {
     let env = Env::default();
     let (admin, client) = create_admin_and_client(&env);
     let attacker = Address::generate(&env);
-    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
+    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000);
     client.settle_market(&attacker, &1, &0);
 }
 
@@ -96,7 +96,7 @@ fn test_non_admin_update_odds() {
     let env = Env::default();
     let (admin, client) = create_admin_and_client(&env);
     let attacker = Address::generate(&env);
-    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
+    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000);
     client.update_odds(&attacker, &1, &300_000, &300_000, &390_000);
 }
 
@@ -106,7 +106,7 @@ fn test_non_admin_archive_market() {
     let env = Env::default();
     let (admin, client) = create_admin_and_client(&env);
     let attacker = Address::generate(&env);
-    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
+    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000);
     client.archive_market(&attacker, &1);
 }
 
@@ -116,7 +116,7 @@ fn test_create_market_odds_too_low() {
     let env = Env::default();
     let (admin, client) = create_admin_and_client(&env);
     // MIN_PRICE is 10,000 but we try with 5,000
-    client.create_market(&admin, &soroban_sdk::symbol_short!("Invalid"), &1234567890, &5_000, &250_000, &735_000, &10_000_000);
+    client.create_market(&admin, &soroban_sdk::symbol_short!("Invalid"), &1234567890, &5_000, &250_000, &735_000);
 }
 
 #[test]
@@ -125,7 +125,7 @@ fn test_create_market_odds_wrong_sum() {
     let env = Env::default();
     let (admin, client) = create_admin_and_client(&env);
     // Sum = 1_000_000 instead of 990_000
-    client.create_market(&admin, &soroban_sdk::symbol_short!("Invalid"), &1234567890, &400_000, &300_000, &300_000, &10_000_000);
+    client.create_market(&admin, &soroban_sdk::symbol_short!("Invalid"), &1234567890, &400_000, &300_000, &300_000);
 }
 
 #[test]
@@ -174,7 +174,7 @@ fn test_stake_more_than_balance() {
     let user = Address::generate(&env);
     client.provide_liquidity(&admin, &10_000_000);
     client.deposit(&user, &500_000);
-    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
+    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000);
     client.place_stake(&user, &1, &0, &600_000);
 }
 
@@ -186,7 +186,7 @@ fn test_stake_zero_amount() {
     let user = Address::generate(&env);
     client.provide_liquidity(&admin, &10_000_000);
     client.deposit(&user, &1_000_000);
-    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
+    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000);
     client.place_stake(&user, &1, &0, &0);
 }
 
@@ -198,7 +198,7 @@ fn test_stake_invalid_outcome() {
     let user = Address::generate(&env);
     client.provide_liquidity(&admin, &10_000_000);
     client.deposit(&user, &1_000_000);
-    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
+    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000);
     client.place_stake(&user, &1, &3, &500_000);
 }
 
@@ -220,7 +220,7 @@ fn test_stake_on_settled_market() {
     let user = Address::generate(&env);
     client.provide_liquidity(&admin, &10_000_000);
     client.deposit(&user, &2_000_000);
-    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
+    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000);
     client.place_stake(&user, &1, &0, &1_000_000);
     client.settle_market(&admin, &1, &0);
     client.place_stake(&user, &1, &0, &500_000); // Should fail
@@ -234,7 +234,7 @@ fn test_stake_on_archived_market() {
     let user = Address::generate(&env);
     client.provide_liquidity(&admin, &10_000_000);
     client.deposit(&user, &1_000_000);
-    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
+    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000);
     client.archive_market(&admin, &1);
     client.place_stake(&user, &1, &0, &500_000);
 }
@@ -244,7 +244,7 @@ fn test_stake_on_archived_market() {
 fn test_settle_invalid_outcome() {
     let env = Env::default();
     let (admin, client) = create_admin_and_client(&env);
-    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
+    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000);
     client.settle_market(&admin, &1, &3);
 }
 
@@ -256,7 +256,7 @@ fn test_double_settlement() {
     let user = Address::generate(&env);
     client.provide_liquidity(&admin, &10_000_000);
     client.deposit(&user, &1_000_000);
-    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
+    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000);
     client.place_stake(&user, &1, &0, &500_000);
     client.settle_market(&admin, &1, &0);
     client.settle_market(&admin, &1, &0); // Should fail
@@ -304,7 +304,7 @@ fn test_market_staker_count_tracking() {
     client.provide_liquidity(&admin, &10_000_000);
     client.deposit(&user1, &1_000_000);
     client.deposit(&user2, &1_000_000);
-    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
+    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000);
 
     assert_eq!(client.get_staker_count(&1), 0);
     client.place_stake(&user1, &1, &0, &500_000);
@@ -318,7 +318,7 @@ fn test_market_staker_count_increments() {
     let env = Env::default();
     let (admin, client) = create_admin_and_client(&env);
     client.provide_liquidity(&admin, &10_000_000);
-    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
+    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000);
 
     // Test that staker count increments correctly
     for i in 0..10u32 {
@@ -354,7 +354,7 @@ fn test_balance_consistency_after_multiple_operations() {
     let initial_total_liq = client.total_liquidity();
     assert_eq!(initial_total_liq, 10_000_000); // Only LP provision counts, not user deposits
 
-    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
+    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000);
     client.place_stake(&user1, &1, &0, &500_000);
     client.place_stake(&user2, &1, &1, &1_000_000);
 
@@ -374,7 +374,7 @@ fn test_normal_settlement_works() {
     client.deposit(&user, &1_000_000);
 
     // Create market with valid odds
-    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
+    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000);
     client.place_stake(&user, &1, &0, &500_000);
 
     // Normal settlement should work fine with valid prices
@@ -412,7 +412,7 @@ fn test_payout_calculation_precision() {
 
     // Test with precise odds calculations
     // Odds: home=40%, draw=25%, away=34% (sum = 99%)
-    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
+    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000);
 
     let stake_amount = 1_000_000i128; // $1.00
     client.place_stake(&user, &1, &0, &stake_amount);
@@ -471,7 +471,7 @@ fn test_dynamic_pricing_cpmm() {
     client.deposit(&user2, &10_000_000);
 
     // Create market with odds: home=40%, draw=25%, away=34%
-    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
+    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000);
 
     // Get initial odds (should be close to initial but calculated from reserves)
     let (odds_home, odds_draw, odds_away) = client.get_current_odds(&1);
@@ -481,7 +481,7 @@ fn test_dynamic_pricing_cpmm() {
     assert!(odds_away > 330_000 && odds_away < 350_000);
 
     // User1 stakes on home - should increase home price
-    client.place_stake(&user1, &1, &0, &5_000_000);
+    client.place_stake(&user1, &1, &0, &1_000_000);
 
     // Check that odds changed
     let (new_odds_home, new_odds_draw, new_odds_away) = client.get_current_odds(&1);
@@ -490,7 +490,7 @@ fn test_dynamic_pricing_cpmm() {
     assert!(new_odds_away < odds_away); // Away price decreased relatively
 
     // User2 stakes on away - should increase away price
-    client.place_stake(&user2, &1, &2, &5_000_000);
+    client.place_stake(&user2, &1, &2, &1_000_000);
 
     let (_final_odds_home, _final_odds_draw, final_odds_away) = client.get_current_odds(&1);
     assert!(final_odds_away > new_odds_away); // Away price increased
@@ -505,7 +505,7 @@ fn test_cash_out_functionality() {
     client.provide_liquidity(&admin, &10_000_000);
     client.deposit(&user, &10_000_000);
 
-    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
+    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000);
 
     // User places stake
     client.place_stake(&user, &1, &0, &1_000_000);
@@ -539,9 +539,9 @@ fn test_cash_out_unauthorized() {
     let user2 = Address::generate(&env);
 
     client.provide_liquidity(&admin, &10_000_000);
-    client.deposit(&user1, &10_000_000);
+    client.deposit(&user1, &1_000_000);
 
-    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
+    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000);
 
     client.place_stake(&user1, &1, &0, &1_000_000);
 
@@ -557,9 +557,9 @@ fn test_cash_out_settled_market() {
     let user = Address::generate(&env);
 
     client.provide_liquidity(&admin, &10_000_000);
-    client.deposit(&user, &10_000_000);
+    client.deposit(&user, &1_000_000);
 
-    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
+    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000);
 
     client.place_stake(&user, &1, &0, &1_000_000);
     client.settle_market(&admin, &1, &0);
@@ -579,7 +579,7 @@ fn test_arbitrage_exploit_repeated_cycles() {
     client.deposit(&attacker, &1_000_000); // Give attacker $1000
 
     // Create market: home=$0.40, draw=$0.33, away=$0.26
-    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &330_000, &260_000, &1_000_000);
+    client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &330_000, &260_000);
 
     let initial_balance = client.get_balance(&attacker);
     let mut current_balance = initial_balance;
