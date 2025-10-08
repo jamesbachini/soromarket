@@ -1040,7 +1040,7 @@ async function loadUserStakes() {
                             <span class="stake-value" data-stake-id="${stake.id}-current-odds">Calculating...</span>
                         </div>
                         <div class="stake-detail">
-                            <span class="stake-label">Cashout Value</span>
+                            <span class="stake-label">Current Value</span>
                             <span class="stake-value profit" data-stake-id="${stake.id}-value">Calculating...</span>
                         </div>
                     </div>
@@ -1090,27 +1090,24 @@ async function updateStakeCurrentValue(stake) {
                        stake.outcome === 1 ? marketData.reserve_draw :
                        marketData.reserve_away;
 
-        // Calculate cashout value using CPMM: shares * reserve / (reserve + shares)
+        // Calculate current value using CPMM: shares * reserve / (reserve + shares)
         const shares = Number(stake.amount);
         const reserveNum = Number(reserve);
-        const payoutBeforeFee = (shares * reserveNum) / (reserveNum + shares);
+        const currentValue = (shares * reserveNum) / (reserveNum + shares);
 
-        // Apply 5% cashout fee
-        const valueAfterFee = payoutBeforeFee * 0.95;
-
-        // Update UI
+        // Update UI (show current value without the 5% cashout fee)
         const valueElement = document.querySelector(`[data-stake-id="${stake.id}-value"]`);
         if (valueElement) {
-            valueElement.textContent = `$${(valueAfterFee / CONFIG.decimals).toFixed(2)}`;
+            valueElement.textContent = `$${(currentValue / CONFIG.decimals).toFixed(2)}`;
 
             // Calculate entry value for comparison
             const entryValue = Number(stake.amount) * Number(stake.price) / CONFIG.decimals;
-            const cashoutValue = valueAfterFee / CONFIG.decimals;
+            const displayValue = currentValue / CONFIG.decimals;
 
-            if (cashoutValue > entryValue) {
+            if (displayValue > entryValue) {
                 valueElement.classList.add('profit');
                 valueElement.classList.remove('loss');
-            } else if (cashoutValue < entryValue) {
+            } else if (displayValue < entryValue) {
                 valueElement.classList.add('loss');
                 valueElement.classList.remove('profit');
             }
