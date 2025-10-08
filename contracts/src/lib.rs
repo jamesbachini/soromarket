@@ -362,14 +362,16 @@ impl PredictionMarketContract {
             2 => market.reserve_away,
             _ => panic!("invalid outcome"),
         };
-        let shares = stake.amount; // stake.amount stores shares
+        let shares = stake.amount;
+        // Calculate payout using CPMM: shares * reserve / (reserve + shares)
         let payout_before_fee = Self::calculate_sell_amount_out(reserve, shares);
         let fee = payout_before_fee.checked_mul(CASHOUT_FEE_PERCENT).expect("mul overflow").checked_div(100).expect("div error");
         let payout_after_fee = payout_before_fee.checked_sub(fee).expect("underflow payout");
+        // When selling shares, remove payout_before_fee USD from reserve (not shares) reserve tracks USD amounts, not share amounts
         match stake.outcome {
-            0 => market.reserve_home = market.reserve_home.checked_sub(shares).expect("underflow reserve"),
-            1 => market.reserve_draw = market.reserve_draw.checked_sub(shares).expect("underflow reserve"),
-            2 => market.reserve_away = market.reserve_away.checked_sub(shares).expect("underflow reserve"),
+            0 => market.reserve_home = market.reserve_home.checked_sub(payout_before_fee).expect("underflow reserve"),
+            1 => market.reserve_draw = market.reserve_draw.checked_sub(payout_before_fee).expect("underflow reserve"),
+            2 => market.reserve_away = market.reserve_away.checked_sub(payout_before_fee).expect("underflow reserve"),
             _ => panic!("invalid outcome"),
         };
         Self::credit_user_balance(&env, &user, payout_after_fee);

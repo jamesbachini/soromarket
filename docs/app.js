@@ -1032,15 +1032,15 @@ async function loadUserStakes() {
                             <span class="stake-value">${outcomeNames[stake.outcome]}</span>
                         </div>
                         <div class="stake-detail">
-                            <span class="stake-label">Shares</span>
-                            <span class="stake-value">$${formatAmount(stake.amount)}</span>
-                        </div>
-                        <div class="stake-detail">
                             <span class="stake-label">Entry Odds</span>
                             <span class="stake-value">$${formatAmount(stake.price)}</span>
                         </div>
                         <div class="stake-detail">
-                            <span class="stake-label">Current Value</span>
+                            <span class="stake-label">Current Odds</span>
+                            <span class="stake-value" data-stake-id="${stake.id}-current-odds">Calculating...</span>
+                        </div>
+                        <div class="stake-detail">
+                            <span class="stake-label">Cashout Value</span>
                             <span class="stake-value profit" data-stake-id="${stake.id}-value">Calculating...</span>
                         </div>
                     </div>
@@ -1066,6 +1066,12 @@ async function loadUserStakes() {
 
 async function updateStakeCurrentValue(stake) {
     try {
+        // Get current market data
+        const market = await readContract('get_market', BigInt(stake.market_id));
+        if (!market) return;
+
+        const marketData = StellarSdk.scValToNative(market);
+
         // Get current odds for the market
         const currentOdds = await readContract('get_current_odds', BigInt(stake.market_id));
         if (!currentOdds) return;
@@ -1073,23 +1079,38 @@ async function updateStakeCurrentValue(stake) {
         const oddsNative = StellarSdk.scValToNative(currentOdds);
         const currentPrice = oddsNative[stake.outcome];
 
-        // Calculate current value: shares * current_price / DECIMALS
-        const currentValue = Number(stake.amount) * Number(currentPrice) / CONFIG.decimals;
+        // Update current odds display
+        const oddsElement = document.querySelector(`[data-stake-id="${stake.id}-current-odds"]`);
+        if (oddsElement) {
+            oddsElement.textContent = `$${formatAmount(currentPrice)}`;
+        }
+
+        // Get the reserve for this outcome
+        const reserve = stake.outcome === 0 ? marketData.reserve_home :
+                       stake.outcome === 1 ? marketData.reserve_draw :
+                       marketData.reserve_away;
+
+        // Calculate cashout value using CPMM formula: shares_in * reserve / (reserve + shares_in)
+        const shares = Number(stake.amount);
+        const reserveNum = Number(reserve);
+        const payoutBeforeFee = (shares * reserveNum) / (reserveNum + shares);
 
         // Apply 5% cashout fee
-        const valueAfterFee = currentValue * 0.95;
+        const valueAfterFee = payoutBeforeFee * 0.95;
 
         // Update UI
         const valueElement = document.querySelector(`[data-stake-id="${stake.id}-value"]`);
         if (valueElement) {
-            valueElement.textContent = `$${valueAfterFee.toFixed(2)}`;
+            valueElement.textContent = `$${(valueAfterFee / CONFIG.decimals).toFixed(2)}`;
 
-            // Add profit/loss indicator
+            // Calculate entry value for comparison
             const entryValue = Number(stake.amount) * Number(stake.price) / CONFIG.decimals;
-            if (valueAfterFee > entryValue) {
+            const cashoutValue = valueAfterFee / CONFIG.decimals;
+
+            if (cashoutValue > entryValue) {
                 valueElement.classList.add('profit');
                 valueElement.classList.remove('loss');
-            } else if (valueAfterFee < entryValue) {
+            } else if (cashoutValue < entryValue) {
                 valueElement.classList.add('loss');
                 valueElement.classList.remove('profit');
             }
