@@ -533,7 +533,7 @@ async function provideLiquidity(amount) {
     }
 }
 
-async function createMarket(title, startTime, homeOdds, drawOdds, awayOdds, initialLiquidity) {
+async function createMarket(title, startTime, homeOdds, drawOdds, awayOdds) {
     try {
         showStatus('Creating market...', 'info');
 
@@ -545,7 +545,6 @@ async function createMarket(title, startTime, homeOdds, drawOdds, awayOdds, init
         const homeOddsMicros = parseAmount(homeOdds);
         const drawOddsMicros = parseAmount(drawOdds);
         const awayOddsMicros = parseAmount(awayOdds);
-        const initialLiquidityMicros = parseAmount(initialLiquidity);
 
         // Build transaction manually with correct types
         const account = await rpc.getAccount(keypair.publicKey());
@@ -561,8 +560,7 @@ async function createMarket(title, startTime, homeOdds, drawOdds, awayOdds, init
             StellarSdk.nativeToScVal(startTimestamp, { type: 'i64' }),
             StellarSdk.nativeToScVal(homeOddsMicros, { type: 'i128' }),
             StellarSdk.nativeToScVal(drawOddsMicros, { type: 'i128' }),
-            StellarSdk.nativeToScVal(awayOddsMicros, { type: 'i128' }),
-            StellarSdk.nativeToScVal(initialLiquidityMicros, { type: 'i128' })
+            StellarSdk.nativeToScVal(awayOddsMicros, { type: 'i128' })
         ))
         .setTimeout(30)
         .build();
@@ -967,15 +965,21 @@ async function updateLiveStakeValues() {
                     }
                 }
 
-                // Get the reserve for this outcome
+                // Get total liquidity
+                const totalLiq = await readContract('total_liquidity');
+                const totalLiquidity = totalLiq ? Number(StellarSdk.scValToNative(totalLiq)) : 0;
+
+                // Get the reserve (total shares) for this outcome
                 const reserve = stake.outcome === 0 ? marketData.reserve_home :
                                stake.outcome === 1 ? marketData.reserve_draw :
                                marketData.reserve_away;
 
-                // Calculate current value using CPMM
+                // Calculate current value: shares * (total_liq / reserve)
+                // Capped at shares to prevent showing profit from own liquidity addition
                 const shares = Number(stake.amount);
-                const reserveNum = Number(reserve);
-                const currentValue = (shares * reserveNum) / (reserveNum + shares);
+                const totalShares = Number(reserve);
+                const proportionalValue = totalShares > 0 ? (shares * totalLiquidity) / totalShares : 0;
+                const currentValue = proportionalValue < shares ? proportionalValue : shares;
 
                 // Update current value display
                 const valueElement = document.querySelector(`[data-stake-id="${stakeId}-value"]`);
@@ -1197,23 +1201,39 @@ async function updateStakeCurrentValue(stake) {
             oddsElement.textContent = `$${formatAmount(currentPrice)}`;
         }
 
-        // Get the reserve for this outcome
+        // Get the reserve (USD amount staked on this outcome)
         const reserve = stake.outcome === 0 ? marketData.reserve_home :
                        stake.outcome === 1 ? marketData.reserve_draw :
                        marketData.reserve_away;
 
-        // Calculate current value using CPMM: shares * reserve / (reserve + shares)
+        // Calculate current value with exit slippage (mirrors contract logic)
         const shares = Number(stake.amount);
         const reserveNum = Number(reserve);
-        const currentValue = (shares * reserveNum) / (reserveNum + shares);
+        const totalReserve = Number(marketData.reserve_home) + Number(marketData.reserve_draw) + Number(marketData.reserve_away);
+
+        // Price before exit
+        const priceBeforeExit = totalReserve > 0 ? (reserveNum * CONFIG.decimals) / totalReserve : 0;
+
+        // Estimated payout
+        const estimatedPayout = (shares * priceBeforeExit) / CONFIG.decimals;
+
+        // Price after removing estimated payout
+        const priceAfterExit = reserveNum <= estimatedPayout ? 0 :
+            ((reserveNum - estimatedPayout) * CONFIG.decimals) / (totalReserve - estimatedPayout);
+
+        // Average exit price (with slippage)
+        const avgExitPrice = (priceBeforeExit + priceAfterExit) / 2;
+
+        // Current value (before 5% fee)
+        const currentValue = (shares * avgExitPrice) / CONFIG.decimals;
 
         // Update UI (show current value without the 5% cashout fee)
         const valueElement = document.querySelector(`[data-stake-id="${stake.id}-value"]`);
         if (valueElement) {
             valueElement.textContent = `$${(currentValue / CONFIG.decimals).toFixed(2)}`;
 
-            // Calculate entry value for comparison
-            const entryValue = Number(stake.amount) * Number(stake.price) / CONFIG.decimals;
+            // Calculate entry value for comparison (shares bought at entry price)
+            const entryValue = (shares * Number(stake.price)) / CONFIG.decimals;
             const displayValue = currentValue / CONFIG.decimals;
 
             if (displayValue > entryValue) {
@@ -1485,10 +1505,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const homeOdds = document.getElementById('home-odds').value;
             const drawOdds = document.getElementById('draw-odds').value;
             const awayOdds = document.getElementById('away-odds').value;
-            const initialLiquidity = document.getElementById('initial-liquidity').value || '10';
 
             if (title && startTime && validateOdds()) {
-                createMarket(title, startTime, homeOdds, drawOdds, awayOdds, initialLiquidity);
+                createMarket(title, startTime, homeOdds, drawOdds, awayOdds);
 
                 // Reset form
                 document.getElementById('market-title').value = '';
@@ -1496,7 +1515,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('home-odds').value = '';
                 document.getElementById('draw-odds').value = '';
                 document.getElementById('away-odds').value = '';
-                document.getElementById('initial-liquidity').value = '';
                 validateOdds();
             } else {
                 showStatus('Please fill all fields and ensure odds sum to $0.99', 'error');

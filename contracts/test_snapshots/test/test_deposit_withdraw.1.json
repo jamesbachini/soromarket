@@ -137,7 +137,7 @@
                 },
                 "durability": "persistent",
                 "val": {
-                  "i128": "600000"
+                  "i128": "0"
                 }
               }
             },

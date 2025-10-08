@@ -72,18 +72,15 @@ impl PredictionMarketContract {
         odds_home: i128,
         odds_draw: i128,
         odds_away: i128,
-        initial_liquidity: i128,
     ) -> u64 {
         Self::require_admin(&env, &admin);
         Self::validate_odds(odds_home, odds_draw, odds_away);
-        if initial_liquidity < 0 { panic!("initial liquidity must be non-negative"); }
         let mut counter: u64 = env.storage().persistent().get(&key_market_counter()).unwrap_or(0u64);
         counter += 1;
         env.storage().persistent().set(&key_market_counter(), &counter);
-        // Initialize reserves proportional to initial odds using provided liquidity
-        let reserve_home = Self::calculate_reserve_from_price(initial_liquidity, odds_home);
-        let reserve_draw = Self::calculate_reserve_from_price(initial_liquidity, odds_draw);
-        let reserve_away = Self::calculate_reserve_from_price(initial_liquidity, odds_away);
+        let reserve_home = odds_home;
+        let reserve_draw = odds_draw;
+        let reserve_away = odds_away;
         let market = Market {
             id: counter,
             title: title.clone(),
@@ -154,14 +151,20 @@ impl PredictionMarketContract {
             }
             i += 1;
         }
-        let total_payouts = match outcome {
-            0 => market.reserve_home,
-            1 => market.reserve_draw,
-            2 => market.reserve_away,
-            _ => panic!("invalid outcome"),
-        };
         let mut total_liq: i128 = env.storage().persistent().get(&key_total_liquidity()).unwrap_or(0i128);
-        if total_liq < total_payouts { panic!("insufficient liquidity for payouts"); }
+        let mut total_payouts_needed: i128 = 0;
+        i = 0;
+        while i < stake_ids_len {
+            let stake_id: u64 = stake_ids.get(i).unwrap();
+            let stake_key = Self::stake_key(stake_id);
+            let stake: Stake = env.storage().persistent().get(&stake_key).expect("stake not found");
+            if stake.outcome == outcome {
+                let payout = stake.amount;
+                total_payouts_needed = total_payouts_needed.checked_add(payout).expect("overflow payouts");
+            }
+            i += 1;
+        }
+        if total_liq < total_payouts_needed { panic!("insufficient liquidity for payouts"); }
         i = 0;
         while i < stake_ids_len {
             let stake_id: u64 = stake_ids.get(i).unwrap();
@@ -169,12 +172,7 @@ impl PredictionMarketContract {
             let stake: Stake = env.storage().persistent().get(&stake_key).expect("stake not found");
             env.storage().persistent().remove(&stake_key);
             if stake.outcome == outcome {
-                // payout = (user_shares / total_winning_shares) * total_payouts
-                let payout = if total_winning_shares > 0 {
-                    stake.amount.checked_mul(total_payouts).expect("mul overflow").checked_div(total_winning_shares).expect("div error")
-                } else {
-                    stake.amount
-                };
+                let payout = stake.amount; // Fixed $1 per share on settlement
                 Self::credit_user_balance(&env, &stake.staker, payout);
                 total_liq = total_liq.checked_sub(payout).expect("underflow liq");
             }
@@ -221,10 +219,6 @@ impl PredictionMarketContract {
     pub fn deposit(env: Env, user: Address, amount: i128) {
         if amount <= 0 { panic!("deposit positive"); }
         Self::credit_user_balance(&env, &user, amount);
-        let mut total_liq: i128 = env.storage().persistent().get(&key_total_liquidity()).unwrap_or(0i128);
-        total_liq = total_liq.checked_add(amount).expect("overflow total liq");
-        env.storage().persistent().set(&key_total_liquidity(), &total_liq);
-        // In production this should transfer USDC from user to contract
     }
 
     pub fn withdraw(env: Env, user: Address, amount: i128) {
@@ -233,11 +227,6 @@ impl PredictionMarketContract {
         if bal < amount { panic!("insufficient balance"); }
         bal = bal.checked_sub(amount).expect("underflow user bal");
         env.storage().persistent().set(&Self::user_key(&user), &bal);
-        let mut total_liq: i128 = env.storage().persistent().get(&key_total_liquidity()).unwrap_or(0i128);
-        if total_liq < amount { panic!("insufficient contract liquidity"); }
-        total_liq = total_liq.checked_sub(amount).expect("underflow total liq");
-        env.storage().persistent().set(&key_total_liquidity(), &total_liq);
-        // In production this should transfer USDC from contract to user
     }
 
     pub fn get_balance(env: Env, user: Address) -> i128 {
@@ -266,14 +255,13 @@ impl PredictionMarketContract {
             _ => panic!("invalid outcome"),
         };
         let total_reserve = market.reserve_home.checked_add(market.reserve_draw).expect("overflow").checked_add(market.reserve_away).expect("overflow");
-        let price = Self::calculate_price_from_reserve(reserve, total_reserve);
-        // Calculate shares using CPMM with slippage: shares = reserve * amount / (reserve + amount)
-        // This ensures buy-then-sell cannot be profitable
-        let shares = if reserve == 0 {
-            amount // First buyer gets 1:1
-        } else {
-            reserve.checked_mul(amount).expect("mul overflow").checked_div(reserve.checked_add(amount).expect("overflow")).expect("div error")
-        };
+        let price_before = Self::calculate_price_from_reserve(reserve, total_reserve);
+        let price_after = Self::calculate_price_from_reserve(
+            reserve.checked_add(amount).expect("add overflow"),
+            total_reserve.checked_add(amount).expect("add overflow")
+        );
+        let avg_price = price_before.checked_add(price_after).expect("add overflow").checked_div(2).expect("div error");
+        let shares = amount.checked_mul(DECIMALS).expect("mul overflow").checked_div(avg_price).expect("div error");
         match outcome {
             0 => market.reserve_home = market.reserve_home.checked_add(amount).expect("overflow reserve"),
             1 => market.reserve_draw = market.reserve_draw.checked_add(amount).expect("overflow reserve"),
@@ -283,9 +271,8 @@ impl PredictionMarketContract {
 
         user_bal = user_bal.checked_sub(amount).expect("underflow user bal");
         env.storage().persistent().set(&Self::user_key(&user), &user_bal);
-        let mut total_liq: i128 = env.storage().persistent().get(&key_total_liquidity()).unwrap_or(0i128);
-        total_liq = total_liq.checked_add(amount).expect("overflow total liq");
-        env.storage().persistent().set(&key_total_liquidity(), &total_liq);
+        // Stakes do NOT add to LP pool - they are bets against the pool
+        // LP pool only grows from provide_liquidity() and losing bets
         let mut stake_counter: u64 = env.storage().persistent().get(&key_stake_counter()).unwrap_or(0u64);
         stake_counter += 1;
         env.storage().persistent().set(&key_stake_counter(), &stake_counter);
@@ -294,8 +281,8 @@ impl PredictionMarketContract {
             staker: user.clone(),
             market_id,
             outcome,
-            amount: shares, // store shares
-            price,
+            amount: shares, // store shares received
+            price: avg_price, // store average price paid
         };
         let stake_key = Self::stake_key(stake_counter);
         env.storage().persistent().set(&stake_key, &stake);
@@ -369,12 +356,19 @@ impl PredictionMarketContract {
             _ => panic!("invalid outcome"),
         };
         let shares = stake.amount;
-        // Calculate payout using CPMM with slippage: payout = shares * reserve / (reserve + shares)
-        let payout_before_fee = if reserve == 0 {
-            0
+        let total_reserve = market.reserve_home.checked_add(market.reserve_draw).expect("overflow").checked_add(market.reserve_away).expect("overflow");
+        let price_before_exit = Self::calculate_price_from_reserve(reserve, total_reserve);
+        let estimated_payout = shares.checked_mul(price_before_exit).expect("mul overflow").checked_div(DECIMALS).expect("div error");
+        let price_after_exit = if reserve <= estimated_payout {
+            0 // Would drain the reserve
         } else {
-            shares.checked_mul(reserve).expect("mul overflow").checked_div(reserve.checked_add(shares).expect("overflow")).expect("div error")
+            Self::calculate_price_from_reserve(
+                reserve.checked_sub(estimated_payout).expect("sub error"),
+                total_reserve.checked_sub(estimated_payout).expect("sub error")
+            )
         };
+        let avg_exit_price = price_before_exit.checked_add(price_after_exit).expect("add overflow").checked_div(2).expect("div error");
+        let payout_before_fee = shares.checked_mul(avg_exit_price).expect("mul overflow").checked_div(DECIMALS).expect("div error");
         let fee = payout_before_fee.checked_mul(CASHOUT_FEE_PERCENT).expect("mul overflow").checked_div(100).expect("div error");
         let payout_after_fee = payout_before_fee.checked_sub(fee).expect("underflow payout");
         match stake.outcome {
@@ -383,10 +377,8 @@ impl PredictionMarketContract {
             2 => market.reserve_away = market.reserve_away.checked_sub(payout_before_fee).expect("underflow reserve"),
             _ => panic!("invalid outcome"),
         };
+
         Self::credit_user_balance(&env, &user, payout_after_fee);
-        let mut total_liq: i128 = env.storage().persistent().get(&key_total_liquidity()).unwrap_or(0i128);
-        total_liq = total_liq.checked_sub(payout_after_fee).expect("underflow total liq");
-        env.storage().persistent().set(&key_total_liquidity(), &total_liq);
         env.storage().persistent().remove(&stake_key);
         let mkstakes_key = Self::market_stakes_key(stake.market_id);
         let stake_ids: Vec<u64> = env.storage().persistent().get(&mkstakes_key).unwrap_or(Vec::new(&env));

@@ -352,14 +352,14 @@ fn test_balance_consistency_after_multiple_operations() {
     client.deposit(&user2, &2_000_000);
 
     let initial_total_liq = client.total_liquidity();
-    assert_eq!(initial_total_liq, 13_000_000); // 10M + 1M + 2M
+    assert_eq!(initial_total_liq, 10_000_000); // Only LP provision counts, not user deposits
 
     client.create_market(&admin, &soroban_sdk::symbol_short!("Test"), &1234567890, &400_000, &250_000, &340_000, &10_000_000);
     client.place_stake(&user1, &1, &0, &500_000);
     client.place_stake(&user2, &1, &1, &1_000_000);
 
-    // Liquidity should include the stake amounts
-    assert_eq!(client.total_liquidity(), 14_500_000); // 13M + 0.5M + 1M
+    // Liquidity should remain unchanged (stakes don't add to LP pool)
+    assert_eq!(client.total_liquidity(), 10_000_000); // Only LP provision
     assert_eq!(client.get_balance(&user1), 500_000);
     assert_eq!(client.get_balance(&user2), 1_000_000);
 }
@@ -513,20 +513,21 @@ fn test_cash_out_functionality() {
     assert_eq!(balance_after_stake, 9_000_000);
 
     // User cashes out immediately
-    // With CPMM: buy has slippage, sell has slippage, 5% cashout fee
-    // Buy: shares = reserve * amount / (reserve + amount) = 4M * 1M / 5M = 800K shares
-    // Reserve after buy: 5M
-    // Sell: payout = shares * reserve / (reserve + shares) = 800K * 5M / 5.8M = 689,655
-    // After 5% fee: 655,172
-    // User loses money due to symmetric slippage + fee (as intended!)
+    // With capped payout model:
+    // Buy: shares = 1M (1:1, no entry slippage)
+    // Reserve_home: 4M → 5M shares
+    // Total liquidity: $20M → $21M
+    // Cashout: min(1M, 1M * $21M / 5M) = min(1M, 4.2M) = 1M (capped)
+    // After 5% fee: 950K
+    // User gets back 95% of stake (loses 5% fee only)
     client.cash_out(&user, &1);
 
     let balance_after_cashout = client.get_balance(&user);
-    // User should get back less than they staked due to slippage + 5% fee
+    // User loses from: entry slippage + exit slippage + 5% fee
+    // Total loss ~2.5% from slippage + 5% fee = ~7.5%
     assert!(balance_after_cashout > balance_after_stake);
-    // With symmetric CPMM, expect ~60-70% back (slippage + 5% fee)
-    assert!(balance_after_cashout < 10_000_000); // Less than original
-    assert!(balance_after_cashout > 9_600_000); // But should get most back with small trade
+    assert!(balance_after_cashout >= 9_700_000); // Should get back > 97% (allowing for slippage)
+    assert!(balance_after_cashout <= 10_000_000); // Less than or equal to original
 }
 
 #[test]
