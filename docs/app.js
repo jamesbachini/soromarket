@@ -13,6 +13,7 @@ let rpc = null;
 let contract = null;
 let isInitialized = false;
 let oddsUpdateInterval = null;
+let stakeValueUpdateInterval = null;
 
 // Initialize RPC and Contract
 function initializeStellar() {
@@ -917,6 +918,114 @@ function stopOddsUpdates() {
     }
 }
 
+async function updateLiveStakeValues() {
+    try {
+        // Get all stake cards with value elements
+        const valueElements = document.querySelectorAll('[data-stake-id$="-value"]');
+        if (valueElements.length === 0) return;
+
+        // Extract unique stake IDs and fetch their data
+        const stakeIds = new Set();
+        valueElements.forEach(el => {
+            const match = el.dataset.stakeId.match(/^(\d+)-value$/);
+            if (match) stakeIds.add(match[1]);
+        });
+
+        for (const stakeId of stakeIds) {
+            try {
+                // Get stake data
+                const stakeResult = await readContract('get_stake', BigInt(stakeId));
+                if (!stakeResult) continue;
+
+                const stake = StellarSdk.scValToNative(stakeResult);
+
+                // Get current market data
+                const market = await readContract('get_market', BigInt(stake.market_id));
+                if (!market) continue;
+
+                const marketData = StellarSdk.scValToNative(market);
+                const status = Array.isArray(marketData.status) ? marketData.status[0] : marketData.status;
+
+                // Only update active markets
+                if (status !== 'Active') continue;
+
+                // Get current odds
+                const currentOdds = await readContract('get_current_odds', BigInt(stake.market_id));
+                if (!currentOdds) continue;
+
+                const oddsNative = StellarSdk.scValToNative(currentOdds);
+                const currentPrice = oddsNative[stake.outcome];
+
+                // Update current odds display
+                const oddsElement = document.querySelector(`[data-stake-id="${stakeId}-current-odds"]`);
+                if (oddsElement) {
+                    const newOddsText = `$${formatAmount(currentPrice)}`;
+                    if (oddsElement.textContent !== newOddsText) {
+                        oddsElement.textContent = newOddsText;
+                        oddsElement.classList.add('odds-changed');
+                        setTimeout(() => oddsElement.classList.remove('odds-changed'), 500);
+                    }
+                }
+
+                // Get the reserve for this outcome
+                const reserve = stake.outcome === 0 ? marketData.reserve_home :
+                               stake.outcome === 1 ? marketData.reserve_draw :
+                               marketData.reserve_away;
+
+                // Calculate current value using CPMM
+                const shares = Number(stake.amount);
+                const reserveNum = Number(reserve);
+                const currentValue = (shares * reserveNum) / (reserveNum + shares);
+
+                // Update current value display
+                const valueElement = document.querySelector(`[data-stake-id="${stakeId}-value"]`);
+                if (valueElement) {
+                    const newValueText = `$${(currentValue / CONFIG.decimals).toFixed(2)}`;
+                    if (valueElement.textContent !== newValueText) {
+                        valueElement.textContent = newValueText;
+                        valueElement.classList.add('odds-changed');
+                        setTimeout(() => valueElement.classList.remove('odds-changed'), 500);
+                    }
+
+                    // Update profit/loss indicator
+                    const entryValue = Number(stake.amount) * Number(stake.price) / CONFIG.decimals;
+                    const displayValue = currentValue / CONFIG.decimals;
+
+                    if (displayValue > entryValue) {
+                        valueElement.classList.add('profit');
+                        valueElement.classList.remove('loss');
+                    } else if (displayValue < entryValue) {
+                        valueElement.classList.add('loss');
+                        valueElement.classList.remove('profit');
+                    }
+                }
+            } catch (error) {
+                // Skip individual stake errors
+                continue;
+            }
+        }
+    } catch (error) {
+        console.error('Error updating live stake values:', error);
+    }
+}
+
+function startStakeValueUpdates() {
+    // Clear existing interval if any
+    if (stakeValueUpdateInterval) {
+        clearInterval(stakeValueUpdateInterval);
+    }
+
+    // Update stake values every 5 seconds
+    stakeValueUpdateInterval = setInterval(updateLiveStakeValues, 5000);
+}
+
+function stopStakeValueUpdates() {
+    if (stakeValueUpdateInterval) {
+        clearInterval(stakeValueUpdateInterval);
+        stakeValueUpdateInterval = null;
+    }
+}
+
 async function loadAdminMarkets() {
     if (!window.isAdminMode) return;
 
@@ -1058,6 +1167,9 @@ async function loadUserStakes() {
                     await updateStakeCurrentValue(stake);
                 }
             });
+
+            // Start real-time stake value updates
+            startStakeValueUpdates();
         }
     } catch (error) {
         console.error('Error loading user stakes:', error);
