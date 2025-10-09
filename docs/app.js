@@ -1301,7 +1301,13 @@ async function openStakingModal(market, outcomeId) {
     const selectedOdds = document.getElementById('selected-odds');
 
     const outcomes = ['Home Win', 'Draw', 'Away Win'];
-    const odds = [market.odds_home, market.odds_draw, market.odds_away];
+
+    // Use current odds if available, fallback to starting odds
+    const currentOdds = [
+        market.current_odds_home || market.odds_home,
+        market.current_odds_draw || market.odds_draw,
+        market.current_odds_away || market.odds_away
+    ];
 
     // Get current CPMM odds for the market
     let currentMarketOdds = null;
@@ -1318,7 +1324,7 @@ async function openStakingModal(market, outcomeId) {
     currentStake = {
         marketId: market.id,
         outcome: parseInt(outcomeId),
-        odds: odds[outcomeId],
+        odds: currentOdds[outcomeId],
         currentOdds: currentMarketOdds,
         reserves: {
             home: market.reserve_home || 0,
@@ -1331,7 +1337,7 @@ async function openStakingModal(market, outcomeId) {
     modalMatchTitle.textContent = market.title;
     modalMatchTime.textContent = formatDateTime(market.start_time);
     selectedOutcome.textContent = outcomes[outcomeId];
-    selectedOdds.textContent = `$${formatAmount(odds[outcomeId])}`;
+    selectedOdds.textContent = `$${formatAmount(currentOdds[outcomeId])}`;
 
     modal.classList.add('show');
 
